@@ -73,20 +73,24 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     setSubmitting(true)
     setErrorMsg('')
 
-    const res = await unifiedApiClient.login({
-      username: username.trim(),
-      password: password.trim()
-    })
+    try {
+      const res = await unifiedApiClient.login({
+        username: username.trim(),
+        password: password.trim()
+      })
 
-    setSubmitting(false)
+      if (!res.ok || !res.data) {
+        setErrorMsg(res.message || '로그인에 실패했습니다.')
+        return
+      }
 
-    if (!res.ok || !res.data) {
-      setErrorMsg(res.message || '로그인에 실패했습니다.')
-      return
+      setPassword('')
+      onLoginSuccess(res.data, res.message)
+    } catch (err) {
+      setErrorMsg(`로그인 처리 중 오류가 발생했습니다: ${(err as Error).message}`)
+    } finally {
+      setSubmitting(false)
     }
-
-    setPassword('')
-    onLoginSuccess(res.data, res.message)
   }
 
   const handleChangePassword = async (e: React.FormEvent): Promise<void> => {
