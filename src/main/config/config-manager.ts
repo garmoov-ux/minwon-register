@@ -16,7 +16,9 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
     startMinimized: false,
     requireLoginOnStart: true,
     autoBackupDaily: true,
-    retentionDays: 365
+    retentionDays: 365,
+    autoLogoutEnabled: true,
+    autoLogoutSeconds: 600
   },
   remoteClient: {
     mode: 'LOCAL',
@@ -43,6 +45,17 @@ export function normalizeConfig(partial?: Partial<AppConfig>): AppConfig {
       retentionDays: Math.max(
         30,
         Number(partial?.system?.retentionDays || DEFAULT_APP_CONFIG.system.retentionDays)
+      ),
+      autoLogoutEnabled:
+        typeof partial?.system?.autoLogoutEnabled === 'boolean'
+          ? partial.system.autoLogoutEnabled
+          : DEFAULT_APP_CONFIG.system.autoLogoutEnabled,
+      autoLogoutSeconds: Math.max(
+        10,
+        Math.min(
+          86400,
+          Number(partial?.system?.autoLogoutSeconds || DEFAULT_APP_CONFIG.system.autoLogoutSeconds)
+        )
       )
     },
     remoteClient: {

@@ -79,19 +79,33 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [oldPw, setOldPw] = useState<string>('')
   const [newPw, setNewPw] = useState<string>('')
 
-  // 미로그인 상태에서 로그인 창이 열릴 때 백그라운드로 사내망 서버를 자동 탐색
+  // 미로그인 상태에서 로그인 창이 열릴 때 내 컴퓨터 서버가 꺼져 있으면 외부 PC 서버를 자동 탐색
   useEffect(() => {
     if (!open || session || !isElectronEnvironment()) return
     let cancelled = false
-    void unifiedApiClient.discoverServers().then((list) => {
-      if (cancelled) return
-      if (list.length > 0) {
-        setDiscoveredServerName(list[0].serverName)
-        if (serverAddress === '127.0.0.1:8090' || !serverAddress.trim()) {
-          setServerAddress(`${list[0].host}:${list[0].port}`)
+    void (async () => {
+      try {
+        const snap = await unifiedApiClient.getSnapshot()
+        const isLocalRunning = Boolean(snap?.serverStatus.running)
+        const myIps = new Set((snap?.serverStatus.adapters || []).map((a) => a.address))
+        if (isLocalRunning) {
+          // 내 컴퓨터에서 이미 서버를 열어둔 호스트라면 내 컴퓨터(127.0.0.1:8090)로 유지
+          setServerAddress('127.0.0.1:8090')
+          return
         }
+        const list = await unifiedApiClient.discoverServers()
+        if (cancelled) return
+        const externalServers = list.filter((s) => !myIps.has(s.host))
+        if (externalServers.length > 0) {
+          setDiscoveredServerName(externalServers[0].serverName)
+          if (serverAddress === '127.0.0.1:8090' || !serverAddress.trim()) {
+            setServerAddress(`${externalServers[0].host}:${externalServers[0].port}`)
+          }
+        }
+      } catch {
+        // ignore
       }
-    })
+    })()
     return () => {
       cancelled = true
     }

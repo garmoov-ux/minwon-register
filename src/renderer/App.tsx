@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { MinwonRecord } from '@shared/types/domain'
 import { useMinwonState } from './hooks/useMinwonState'
 import { unifiedApiClient } from './services/api-client'
@@ -60,7 +60,9 @@ export const App: React.FC = () => {
         startMinimized: false,
         requireLoginOnStart: true,
         autoBackupDaily: true,
-        retentionDays: 365
+        retentionDays: 365,
+        autoLogoutEnabled: true,
+        autoLogoutSeconds: 600
       },
       remoteClient: { mode: 'LOCAL' as const, remoteServerUrl: 'http://127.0.0.1:8090' }
     },
@@ -117,14 +119,56 @@ export const App: React.FC = () => {
   const canManageUsers = Boolean(
     currentUser && (currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ADMIN')
   )
+  // 최고관리자(SUPER_ADMIN) 및 관리자(ADMIN)만 서버 기능 켜기/끄기 가능 (일반 사용자 USER는 차단)
   const canControlServer = Boolean(
-    currentUser &&
-      (currentUser.role === 'SUPER_ADMIN' ||
-        (currentUser.role === 'ADMIN' &&
-          (currentUser.canToggleServer ||
-            currentUser.username === safeSnapshot.config.server.designatedAdminUsername)))
+    currentUser && (currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ADMIN')
   )
   const canWrite = Boolean(currentUser)
+
+  // 무동작 자동 로그아웃 타이머 (설정된 초 동안 마우스/키보드 이벤트가 없을 때 자동 로그아웃)
+  const autoLogoutEnabled = Boolean(safeSnapshot.config.system.autoLogoutEnabled)
+  const autoLogoutSeconds = Math.max(10, Number(safeSnapshot.config.system.autoLogoutSeconds || 600))
+
+  useEffect(() => {
+    if (!session || !autoLogoutEnabled) return
+
+    let timeoutId: NodeJS.Timeout | null = null
+    let lastResetMs = 0
+
+    const triggerAutoLogout = (): void => {
+      void handleLogout()
+      setLoginModalOpen(true)
+      showToast(`장시간(${autoLogoutSeconds}초) 사용 이벤트가 없어 보안상 자동 로그아웃되었습니다.`)
+    }
+
+    const resetTimer = (): void => {
+      const now = Date.now()
+      if (now - lastResetMs < 500) return
+      lastResetMs = now
+      if (timeoutId) clearTimeout(timeoutId)
+      timeoutId = setTimeout(triggerAutoLogout, autoLogoutSeconds * 1000)
+    }
+
+    resetTimer()
+    const events: Array<keyof WindowEventMap> = [
+      'mousemove',
+      'mousedown',
+      'keydown',
+      'wheel',
+      'touchstart',
+      'click'
+    ]
+    for (const ev of events) {
+      window.addEventListener(ev, resetTimer, { passive: true })
+    }
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId)
+      for (const ev of events) {
+        window.removeEventListener(ev, resetTimer)
+      }
+    }
+  }, [session, autoLogoutEnabled, autoLogoutSeconds])
 
   const handleGoNewRegister = (): void => {
     setEditingRecord(null)

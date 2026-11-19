@@ -227,6 +227,8 @@ export interface AppConfig {
     requireLoginOnStart: boolean
     autoBackupDaily: boolean
     retentionDays: number
+    autoLogoutEnabled: boolean
+    autoLogoutSeconds: number
   }
   remoteClient: {
     mode: 'LOCAL' | 'REMOTE'

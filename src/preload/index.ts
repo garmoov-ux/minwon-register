@@ -111,6 +111,7 @@ export const minwonApi = {
     enabled: boolean
     port?: number
     host?: string
+    actorUsername?: string
   }): Promise<ActionResult> => ipcRenderer.invoke(IPC_CHANNELS.SERVER_TOGGLE, params),
 
   discoverServers: (): Promise<

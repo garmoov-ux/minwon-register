@@ -154,9 +154,7 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
                   </span>
                 </div>
                 <p className="text-[11.5px] text-[#475569] truncate">
-                  서버 허용: 최고관리자(admin) · 지정 관리자(
-                  {designatedAdminUser ? designatedAdminUser.displayName : config.server.designatedAdminUsername}
-                  )
+                  서버 켜기/끄기 권한: 최고관리자 및 관리자 계정 전용 (일반 사용자 제어 불가)
                 </p>
               </div>
 
@@ -407,9 +405,7 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
           bodyClassName="overflow-y-auto space-y-2 pr-1"
         >
           {users.map((u) => {
-            const isDesignatedServerAdmin =
-              u.role === 'ADMIN' &&
-              (u.canToggleServer || u.username === config.server.designatedAdminUsername)
+            const hasServerPermission = u.role === 'SUPER_ADMIN' || u.role === 'ADMIN'
 
             return (
               <div
@@ -417,7 +413,7 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
                 className={`rounded-[9px] border p-3 flex items-center justify-between gap-3 ${
                   u.role === 'SUPER_ADMIN'
                     ? 'bg-[#fffbeb] border-[#fde68a]'
-                    : isDesignatedServerAdmin
+                    : u.role === 'ADMIN'
                       ? 'bg-[#eff6ff] border-[#93c5fd]'
                       : 'bg-[#f8fafc] border-[#cbd5e1]'
                 }`}
@@ -441,10 +437,10 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
                     >
                       {USER_ROLE_LABELS[u.role]}
                     </span>
-                    {(u.role === 'SUPER_ADMIN' || isDesignatedServerAdmin) && (
+                    {hasServerPermission && (
                       <span className="px-2 py-0.5 rounded-[5px] bg-[#064e3b] text-[#34d399] text-[10.5px] font-bold inline-flex items-center gap-1">
                         <CheckCircle2 className="w-3 h-3" />
-                        서버 허용
+                        서버 제어 가능
                       </span>
                     )}
                   </div>
@@ -468,15 +464,6 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
 
                 {canManageUsers && (
                   <div className="flex items-center gap-1 shrink-0">
-                    {isSuperAdmin && u.username !== 'admin' && !isDesignatedServerAdmin && (
-                      <PillButton
-                        variant="secondary-pill"
-                        size="sm"
-                        onClick={() => void handleDesignateServerAdmin(u.username)}
-                      >
-                        서버 관리자 지정
-                      </PillButton>
-                    )}
                     {(isSuperAdmin || u.role !== 'SUPER_ADMIN') && (
                       <PillButton
                         variant="pearl-capsule"
@@ -490,7 +477,7 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
                             email: u.email,
                             contact: u.contact,
                             role: u.role,
-                            canToggleServer: u.canToggleServer,
+                            canToggleServer: u.role !== 'USER',
                             active: u.active
                           })
                         }

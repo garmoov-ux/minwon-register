@@ -58,16 +58,9 @@ export interface IpcContext {
   broadcastUpdate: () => void
 }
 
-export function canUserControlServer(user: UserAccount | null, config: AppConfig): boolean {
+export function canUserControlServer(user: UserAccount | null, _config?: AppConfig): boolean {
   if (!user) return false
-  if (user.role === 'SUPER_ADMIN') return true
-  if (
-    user.role === 'ADMIN' &&
-    (user.canToggleServer || user.username === config.server.designatedAdminUsername)
-  ) {
-    return true
-  }
-  return false
+  return user.role === 'SUPER_ADMIN' || user.role === 'ADMIN'
 }
 
 export function registerIpcHandlers(ctx: IpcContext): void {
@@ -684,20 +677,24 @@ export function registerIpcHandlers(ctx: IpcContext): void {
     }
   )
 
-  // 6. 내장 다중 접속 서버 On/Off 제어 (최고관리자 또는 지정된 관리자 1명만 허용!)
+  // 6. 내장 다중 접속 서버 On/Off 제어 (최고관리자 또는 관리자만 허용, 일반 사용자 차단)
   ipcMain.handle(
     IPC_CHANNELS.SERVER_TOGGLE,
     async (
       _e,
-      params: { enabled: boolean; port?: number; host?: string }
+      params: { enabled: boolean; port?: number; host?: string; actorUsername?: string }
     ): Promise<ActionResult> => {
       const currentCfg = ctx.getConfig()
-      const actor = ctx.getCurrentUser()
+      let actor = ctx.getCurrentUser()
+      if (!actor && params.actorUsername) {
+        actor = ctx.userRepo.getUserByUsername(params.actorUsername)
+        if (actor) ctx.setCurrentUser(actor)
+      }
 
       if (!canUserControlServer(actor, currentCfg)) {
         return {
           ok: false,
-          message: `다중 접속 서버 기능은 최고관리자 또는 지정된 관리자(${currentCfg.server.designatedAdminUsername}) 계정만 켤 수 있습니다.`
+          message: '다중 접속 서버 켜기/끄기 기능은 최고관리자 또는 관리자 계정만 사용할 수 있습니다.'
         }
       }
 

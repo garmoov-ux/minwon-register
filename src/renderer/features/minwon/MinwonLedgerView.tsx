@@ -1,5 +1,8 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   Calendar,
   Check,
   Columns3,
@@ -207,6 +210,52 @@ export const MinwonLedgerView: React.FC<MinwonLedgerViewProps> = ({
     680,
     visibleColumnList.reduce((sum, col) => sum + col.width, 0)
   )
+
+  // 대장 목록 컬럼 정렬 상태 (기본: 연번 내림차순)
+  type MinwonSortField = Exclude<LedgerColumnKey, 'actions'>
+  const [sortField, setSortField] = useState<MinwonSortField>('id')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+
+  const handleToggleSort = (field: MinwonSortField): void => {
+    if (sortField === field) {
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortField(field)
+      setSortOrder(field === 'id' || field === 'receivedDate' || field === 'reviewDate' ? 'desc' : 'asc')
+    }
+  }
+
+  const sortedRecords = useMemo(() => {
+    const copy = [...records]
+    copy.sort((a, b) => {
+      const valA = a[sortField]
+      const valB = b[sortField]
+      let cmp = 0
+      if (typeof valA === 'number' && typeof valB === 'number') {
+        cmp = valA - valB
+      } else {
+        cmp = String(valA ?? '').localeCompare(String(valB ?? ''), 'ko-KR', {
+          numeric: true
+        })
+      }
+      if (cmp === 0) {
+        cmp = a.id - b.id
+      }
+      return sortOrder === 'asc' ? cmp : -cmp
+    })
+    return copy
+  }, [records, sortField, sortOrder])
+
+  const renderSortIcon = (field: MinwonSortField): React.ReactNode => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="w-3 h-3 text-[#94a3b8] inline ml-0.5" />
+    }
+    return sortOrder === 'asc' ? (
+      <ArrowUp className="w-3 h-3 text-[#2563eb] inline ml-0.5" />
+    ) : (
+      <ArrowDown className="w-3 h-3 text-[#2563eb] inline ml-0.5" />
+    )
+  }
 
   const currentQuery: MinwonFilterQuery = {
     division,
@@ -642,44 +691,156 @@ export const MinwonLedgerView: React.FC<MinwonLedgerViewProps> = ({
           >
             <thead className="sticky top-0 z-10 bg-[#f1f5f9] text-[#334155] border-b border-[#cbd5e1] text-[11.5px] font-bold">
               <tr className="whitespace-nowrap">
-                {visibleCols.id && <th className="py-2.5 px-2 text-center w-[48px]">연번</th>}
+                {visibleCols.id && (
+                  <th
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleToggleSort('id')
+                    }}
+                    className="py-2.5 px-2 text-center w-[56px] cursor-pointer hover:bg-[#e2e8f0]/70 transition-colors"
+                  >
+                    연번{renderSortIcon('id')}
+                  </th>
+                )}
                 {visibleCols.receivedDate && (
-                  <th className="py-2.5 px-2 text-center w-[92px]">접수일자</th>
+                  <th
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleToggleSort('receivedDate')
+                    }}
+                    className="py-2.5 px-2 text-center w-[98px] cursor-pointer hover:bg-[#e2e8f0]/70 transition-colors"
+                  >
+                    접수일자{renderSortIcon('receivedDate')}
+                  </th>
                 )}
                 {visibleCols.receptionType && (
-                  <th className="py-2.5 px-2 text-center w-[96px]">접수구분</th>
+                  <th
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleToggleSort('receptionType')
+                    }}
+                    className="py-2.5 px-2 text-center w-[100px] cursor-pointer hover:bg-[#e2e8f0]/70 transition-colors"
+                  >
+                    접수구분{renderSortIcon('receptionType')}
+                  </th>
                 )}
                 {visibleCols.receptionNo && (
-                  <th className="py-2.5 px-2 text-center w-[138px]">문서(접수)번호</th>
+                  <th
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleToggleSort('receptionNo')
+                    }}
+                    className="py-2.5 px-2 text-center w-[142px] cursor-pointer hover:bg-[#e2e8f0]/70 transition-colors"
+                  >
+                    문서(접수)번호{renderSortIcon('receptionNo')}
+                  </th>
                 )}
                 {visibleCols.complainantName && (
-                  <th className="py-2.5 px-2 text-center w-[88px]">이름</th>
+                  <th
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleToggleSort('complainantName')
+                    }}
+                    className="py-2.5 px-2 text-center w-[92px] cursor-pointer hover:bg-[#e2e8f0]/70 transition-colors"
+                  >
+                    이름{renderSortIcon('complainantName')}
+                  </th>
                 )}
                 {visibleCols.contact && (
-                  <th className="py-2.5 px-2 text-center w-[112px]">연락처</th>
+                  <th
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleToggleSort('contact')
+                    }}
+                    className="py-2.5 px-2 text-center w-[114px] cursor-pointer hover:bg-[#e2e8f0]/70 transition-colors"
+                  >
+                    연락처{renderSortIcon('contact')}
+                  </th>
                 )}
-                {visibleCols.location && <th className="py-2.5 px-2.5 w-[210px]">위치</th>}
+                {visibleCols.location && (
+                  <th
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleToggleSort('location')
+                    }}
+                    className="py-2.5 px-2.5 w-[210px] cursor-pointer hover:bg-[#e2e8f0]/70 transition-colors"
+                  >
+                    위치{renderSortIcon('location')}
+                  </th>
+                )}
                 {visibleCols.zoneType && (
-                  <th className="py-2.5 px-2 text-center w-[96px]">구역구분</th>
+                  <th
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleToggleSort('zoneType')
+                    }}
+                    className="py-2.5 px-2 text-center w-[100px] cursor-pointer hover:bg-[#e2e8f0]/70 transition-colors"
+                  >
+                    구역구분{renderSortIcon('zoneType')}
+                  </th>
                 )}
-                {visibleCols.content && <th className="py-2.5 px-2.5 w-[180px]">민원내용</th>}
+                {visibleCols.content && (
+                  <th
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleToggleSort('content')
+                    }}
+                    className="py-2.5 px-2.5 w-[180px] cursor-pointer hover:bg-[#e2e8f0]/70 transition-colors"
+                  >
+                    민원내용{renderSortIcon('content')}
+                  </th>
+                )}
                 {visibleCols.reviewDate && (
-                  <th className="py-2.5 px-2 text-center w-[92px]">공단 검토일자</th>
+                  <th
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleToggleSort('reviewDate')
+                    }}
+                    className="py-2.5 px-2 text-center w-[104px] cursor-pointer hover:bg-[#e2e8f0]/70 transition-colors"
+                  >
+                    공단 검토일자{renderSortIcon('reviewDate')}
+                  </th>
                 )}
                 {visibleCols.reviewResult && (
-                  <th className="py-2.5 px-2 text-center w-[92px]">공단 검토결과</th>
+                  <th
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleToggleSort('reviewResult')
+                    }}
+                    className="py-2.5 px-2 text-center w-[104px] cursor-pointer hover:bg-[#e2e8f0]/70 transition-colors"
+                  >
+                    공단 검토결과{renderSortIcon('reviewResult')}
+                  </th>
                 )}
                 {visibleCols.improvementResult && (
-                  <th className="py-2.5 px-2 w-[120px]">개선결과</th>
+                  <th
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleToggleSort('improvementResult')
+                    }}
+                    className="py-2.5 px-2 w-[120px] cursor-pointer hover:bg-[#e2e8f0]/70 transition-colors"
+                  >
+                    개선결과{renderSortIcon('improvementResult')}
+                  </th>
                 )}
-                {visibleCols.note && <th className="py-2.5 px-2 w-[110px]">비고</th>}
+                {visibleCols.note && (
+                  <th
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleToggleSort('note')
+                    }}
+                    className="py-2.5 px-2 w-[110px] cursor-pointer hover:bg-[#e2e8f0]/70 transition-colors"
+                  >
+                    비고{renderSortIcon('note')}
+                  </th>
+                )}
                 {canWrite && visibleCols.actions && (
                   <th className="py-2.5 px-2 text-center w-[64px]">관리</th>
                 )}
               </tr>
             </thead>
             <tbody className="divide-y divide-[#e2e8f0]">
-              {records.length === 0 ? (
+              {sortedRecords.length === 0 ? (
                 <tr>
                   <td
                     colSpan={Math.max(1, visibleColumnList.length)}
@@ -689,7 +850,7 @@ export const MinwonLedgerView: React.FC<MinwonLedgerViewProps> = ({
                   </td>
                 </tr>
               ) : (
-                records.map((r) => {
+                sortedRecords.map((r) => {
                   const isSelected = selectedId === r.id
                   const badgeCls =
                     RESULT_BADGE_MAP[r.reviewResult] ||

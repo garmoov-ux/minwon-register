@@ -1,6 +1,9 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
   AlertTriangle,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   Download,
   Edit3,
   FileSpreadsheet,
@@ -45,6 +48,61 @@ export const DeviceManagementView: React.FC<DeviceManagementViewProps> = ({
   const [keyword, setKeyword] = useState<string>('')
   const [zoneFilter, setZoneFilter] = useState<string>('전체')
   const [typeFilter, setTypeFilter] = useState<string>('전체')
+
+  // 단속장비 마스터 목록 컬럼 정렬 상태
+  type DeviceSortField =
+    | 'installYear'
+    | 'deviceId'
+    | 'deviceName'
+    | 'location'
+    | 'manufacturer'
+    | 'category'
+    | 'enforcementType'
+    | 'speedLimit'
+    | 'zoneType'
+  const [sortField, setSortField] = useState<DeviceSortField>('installYear')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+
+  const handleToggleSort = (field: DeviceSortField): void => {
+    if (sortField === field) {
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortField(field)
+      setSortOrder(field === 'installYear' || field === 'speedLimit' ? 'desc' : 'asc')
+    }
+  }
+
+  const sortedDevices = useMemo(() => {
+    const copy = [...devices]
+    copy.sort((a, b) => {
+      const valA = a[sortField]
+      const valB = b[sortField]
+      let cmp = 0
+      if (typeof valA === 'number' && typeof valB === 'number') {
+        cmp = valA - valB
+      } else {
+        cmp = String(valA ?? '').localeCompare(String(valB ?? ''), 'ko-KR', {
+          numeric: true
+        })
+      }
+      if (cmp === 0) {
+        cmp = a.deviceId.localeCompare(b.deviceId, 'ko-KR', { numeric: true })
+      }
+      return sortOrder === 'asc' ? cmp : -cmp
+    })
+    return copy
+  }, [devices, sortField, sortOrder])
+
+  const renderSortIcon = (field: DeviceSortField): React.ReactNode => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="w-3 h-3 text-[#94a3b8] inline ml-1" />
+    }
+    return sortOrder === 'asc' ? (
+      <ArrowUp className="w-3 h-3 text-[#2563eb] inline ml-1" />
+    ) : (
+      <ArrowDown className="w-3 h-3 text-[#2563eb] inline ml-1" />
+    )
+  }
 
   // 우측 사이드패널 (신규 장비 등록 또는 선택된 장비 상세/수정)
   const [editingDevice, setEditingDevice] = useState<TrafficDeviceUpsertPayload | null>(null)
@@ -209,7 +267,31 @@ export const DeviceManagementView: React.FC<DeviceManagementViewProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          {subMode === 'MASTER_LIST' && (
+            <>
+              <PillButton
+                variant="pearl-capsule"
+                size="sm"
+                onClick={() => void handleExportDevicesCsv()}
+                title="현재 조회된 단속장비 목록을 한글이 깨지지 않는 CSV 파일로 내보냅니다"
+              >
+                <Download className="w-3.5 h-3.5 text-[#2563eb]" />
+                <span>CSV 내보내기</span>
+              </PillButton>
+              {canWrite && (
+                <PillButton
+                  variant="pearl-capsule"
+                  size="sm"
+                  onClick={() => void handleImportDevicesCsv()}
+                  title="엑셀에서 편집한 단속장비 CSV 파일을 가져와 일괄 등록/수정합니다"
+                >
+                  <Upload className="w-3.5 h-3.5 text-[#059669]" />
+                  <span>CSV 가져오기</span>
+                </PillButton>
+              )}
+            </>
+          )}
           {canWrite && (
             <PillButton
               variant="pearl-capsule"
@@ -553,13 +635,13 @@ export const DeviceManagementView: React.FC<DeviceManagementViewProps> = ({
       {/* 모드 2: 단속장비 마스터 487대 검색 및 우측 사이드패널(상세/수정/신규등록) */}
       {subMode === 'MASTER_LIST' && (
         <div className="flex-1 min-h-0 flex flex-col gap-2">
-          {/* 상단 필터 바: 보호구역 및 단속종류(전체·신호과속·과속·구간 등)를 좌측으로 보기 좋게 정렬 */}
+          {/* 상단 필터 바: 보호구역 및 단속종류 필터가 줄바꿈 없이 1줄로 깔끔하게 정렬 */}
           <div
-            className="rounded-[10px] bg-white border border-[#cbd5e1] p-2.5 flex items-center justify-between gap-2 shrink-0"
+            className="rounded-[10px] bg-white border border-[#cbd5e1] px-2.5 py-2 flex items-center justify-between gap-2 shrink-0 flex-nowrap overflow-x-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5 flex-nowrap shrink-0">
+              <div className="flex items-center gap-1 flex-nowrap">
                 {['전체', '일반구역', '어린이보호구역', '노인보호구역', '장애인보호구역'].map((z) => (
                   <OptionChip
                     key={z}
@@ -570,9 +652,9 @@ export const DeviceManagementView: React.FC<DeviceManagementViewProps> = ({
                 ))}
               </div>
 
-              <div className="w-[1px] h-5 bg-[#cbd5e1] mx-1" />
+              <div className="w-[1px] h-4 bg-[#cbd5e1] mx-1 shrink-0" />
 
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 flex-nowrap">
                 {['전체', '신호과속', '과속', '구간', '운행제한', '진입금지'].map((t) => (
                   <OptionChip
                     key={t}
@@ -596,65 +678,81 @@ export const DeviceManagementView: React.FC<DeviceManagementViewProps> = ({
                 />
               </div>
 
-              <div className="h-[28px] px-2.5 rounded-[6px] bg-[#eff6ff] border border-[#bfdbfe] text-[#1d4ed8] text-[12px] font-extrabold inline-flex items-center gap-1 shrink-0">
+              <div className="h-[28px] px-2.5 rounded-[6px] bg-[#eff6ff] border border-[#bfdbfe] text-[#1d4ed8] text-[12px] font-extrabold inline-flex items-center gap-1 shrink-0 whitespace-nowrap">
                 <span>검색</span>
-                <span>{devices.length.toLocaleString()}대</span>
+                <span>{sortedDevices.length.toLocaleString()}대</span>
                 <span className="text-[11px] font-medium text-[#64748b]">
                   / 전체 {totalDeviceCount.toLocaleString()}대
                 </span>
               </div>
-
-              <PillButton
-                variant="pearl-capsule"
-                size="sm"
-                onClick={() => void handleExportDevicesCsv()}
-                title="현재 조회된 단속장비 목록을 한글이 깨지지 않는 CSV 파일로 내보냅니다"
-              >
-                <Download className="w-3.5 h-3.5 text-[#2563eb]" />
-                <span>CSV 내보내기</span>
-              </PillButton>
-
-              {canWrite && (
-                <PillButton
-                  variant="pearl-capsule"
-                  size="sm"
-                  onClick={() => void handleImportDevicesCsv()}
-                  title="엑셀에서 편집한 단속장비 CSV 파일을 가져와 일괄 등록/수정합니다"
-                >
-                  <Upload className="w-3.5 h-3.5 text-[#059669]" />
-                  <span>CSV 가져오기</span>
-                </PillButton>
-              )}
-
-              {canWrite && (
-                <PillButton variant="primary" size="sm" onClick={openNewDevicePanel}>
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>장비 등록</span>
-                </PillButton>
-              )}
             </div>
           </div>
 
-          {/* 좌측 장비 테이블 + 우측 사이드패널(데이터 선택 또는 신규 장비 등록 시 열림) */}
+          {/* 좌측 장비 테이블(컬럼 헤더 클릭 시 정렬 지원) + 우측 사이드패널 */}
           <div className="flex-1 min-h-0 bg-white border border-[#cbd5e1] rounded-[10px] overflow-hidden flex">
             <div className="flex-1 min-w-0 min-h-0 overflow-auto">
               <table className="w-full border-collapse text-left text-[12px]">
                 <thead className="sticky top-0 z-10 bg-[#f1f5f9] text-[#334155] border-b border-[#cbd5e1] text-[11.5px] font-bold">
                   <tr className="whitespace-nowrap">
-                    <th className="py-2 px-2.5 text-center w-[68px]">설치년도</th>
-                    <th className="py-2 px-2.5 text-center w-[76px]">장비번호</th>
-                    <th className="py-2 px-2.5 w-[180px]">장비명</th>
-                    <th className="py-2 px-2.5 min-w-[230px]">설치 위치</th>
-                    <th className="py-2 px-2.5 w-[140px]">제조사</th>
-                    <th className="py-2 px-2.5 text-center w-[68px]">유형</th>
-                    <th className="py-2 px-2.5 text-center w-[76px]">단속종류</th>
-                    <th className="py-2 px-2.5 text-center w-[70px]">제한속도</th>
-                    <th className="py-2 px-2.5 text-center w-[100px]">보호구역명</th>
+                    <th
+                      onClick={() => handleToggleSort('installYear')}
+                      className="py-2 px-2.5 text-center w-[76px] cursor-pointer hover:bg-[#e2e8f0]/70 transition-colors"
+                    >
+                      설치년도{renderSortIcon('installYear')}
+                    </th>
+                    <th
+                      onClick={() => handleToggleSort('deviceId')}
+                      className="py-2 px-2.5 text-center w-[84px] cursor-pointer hover:bg-[#e2e8f0]/70 transition-colors"
+                    >
+                      장비번호{renderSortIcon('deviceId')}
+                    </th>
+                    <th
+                      onClick={() => handleToggleSort('deviceName')}
+                      className="py-2 px-2.5 w-[180px] cursor-pointer hover:bg-[#e2e8f0]/70 transition-colors"
+                    >
+                      장비명{renderSortIcon('deviceName')}
+                    </th>
+                    <th
+                      onClick={() => handleToggleSort('location')}
+                      className="py-2 px-2.5 min-w-[230px] cursor-pointer hover:bg-[#e2e8f0]/70 transition-colors"
+                    >
+                      설치 위치{renderSortIcon('location')}
+                    </th>
+                    <th
+                      onClick={() => handleToggleSort('manufacturer')}
+                      className="py-2 px-2.5 w-[140px] cursor-pointer hover:bg-[#e2e8f0]/70 transition-colors"
+                    >
+                      제조사{renderSortIcon('manufacturer')}
+                    </th>
+                    <th
+                      onClick={() => handleToggleSort('category')}
+                      className="py-2 px-2.5 text-center w-[74px] cursor-pointer hover:bg-[#e2e8f0]/70 transition-colors"
+                    >
+                      유형{renderSortIcon('category')}
+                    </th>
+                    <th
+                      onClick={() => handleToggleSort('enforcementType')}
+                      className="py-2 px-2.5 text-center w-[84px] cursor-pointer hover:bg-[#e2e8f0]/70 transition-colors"
+                    >
+                      단속종류{renderSortIcon('enforcementType')}
+                    </th>
+                    <th
+                      onClick={() => handleToggleSort('speedLimit')}
+                      className="py-2 px-2.5 text-center w-[78px] cursor-pointer hover:bg-[#e2e8f0]/70 transition-colors"
+                    >
+                      제한속도{renderSortIcon('speedLimit')}
+                    </th>
+                    <th
+                      onClick={() => handleToggleSort('zoneType')}
+                      className="py-2 px-2.5 text-center w-[108px] cursor-pointer hover:bg-[#e2e8f0]/70 transition-colors"
+                    >
+                      보호구역명{renderSortIcon('zoneType')}
+                    </th>
                     {canWrite && <th className="py-2 px-2.5 text-center w-[68px]">관리</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#e2e8f0]">
-                  {devices.map((d) => {
+                  {sortedDevices.map((d) => {
                     const isSelected = !isNewDeviceMode && editingDevice?.deviceId === d.deviceId
                     return (
                       <tr

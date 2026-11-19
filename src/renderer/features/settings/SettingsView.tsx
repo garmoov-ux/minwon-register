@@ -1,9 +1,18 @@
-import React, { useState } from 'react'
-import { AlertTriangle, ListPlus, Plus, RefreshCw, Save, Settings, Trash2 } from 'lucide-react'
+import React, { useEffect, useState } from 'react'
+import { AlertTriangle, Clock, ListPlus, Plus, RefreshCw, Save, Settings, Trash2 } from 'lucide-react'
 import { AppConfig, CodeCategory } from '@shared/types/domain'
 import { unifiedApiClient } from '../../services/api-client'
 import { UtilityCard } from '../../components/ui/UtilityCard'
 import { PillButton } from '../../components/ui/PillButton'
+
+const AUTO_LOGOUT_PRESETS = [
+  { seconds: 60, label: '60초 (1분)' },
+  { seconds: 180, label: '180초 (3분)' },
+  { seconds: 300, label: '300초 (5분)' },
+  { seconds: 600, label: '600초 (10분·권장)' },
+  { seconds: 900, label: '900초 (15분)' },
+  { seconds: 1800, label: '1800초 (30분)' }
+]
 
 interface SettingsViewProps {
   config: AppConfig
@@ -32,6 +41,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<CodeCategory>('접수구분')
   const [newCodeText, setNewCodeText] = useState<string>('')
   const [confirmResetOpen, setConfirmResetOpen] = useState<boolean>(false)
+
+  useEffect(() => {
+    setDraftConfig(config)
+  }, [config])
+
+  const applyAndSaveConfig = (next: AppConfig): void => {
+    setDraftConfig(next)
+    if (canControlServer) {
+      void onSaveConfig(next)
+    }
+  }
 
   const handleAddCode = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault()
@@ -197,6 +217,118 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 사용 안 함
               </button>
             </div>
+          </div>
+
+          {/* 무동작(이벤트 미발생) 자동 로그아웃 설정 및 초(Seconds) 선택 */}
+          <div className="rounded-[8px] border border-[#cbd5e1] bg-[#f8fafc] p-3 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[12.5px] font-bold text-[#0f172a] inline-flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-[#2563eb]" />
+                  <span>무동작 시 자동 로그아웃 (보안 세션 보호)</span>
+                </div>
+                <div className="text-[11px] text-[#64748b]">
+                  마우스·키보드 입력 이벤트가 지정된 시간(초) 동안 발생하지 않으면 자동으로 로그아웃됩니다.
+                </div>
+              </div>
+              <div className="inline-flex rounded-[6px] border border-[#cbd5e1] bg-white p-0.5 shrink-0">
+                <button
+                  type="button"
+                  disabled={!canControlServer}
+                  onClick={() =>
+                    applyAndSaveConfig({
+                      ...draftConfig,
+                      system: { ...draftConfig.system, autoLogoutEnabled: true }
+                    })
+                  }
+                  className={`px-2.5 py-1 rounded-[5px] text-[11px] font-semibold cursor-pointer ${
+                    draftConfig.system.autoLogoutEnabled
+                      ? 'bg-[#2563eb] text-white'
+                      : 'text-[#64748b]'
+                  }`}
+                >
+                  사용함
+                </button>
+                <button
+                  type="button"
+                  disabled={!canControlServer}
+                  onClick={() =>
+                    applyAndSaveConfig({
+                      ...draftConfig,
+                      system: { ...draftConfig.system, autoLogoutEnabled: false }
+                    })
+                  }
+                  className={`px-2.5 py-1 rounded-[5px] text-[11px] font-semibold cursor-pointer ${
+                    !draftConfig.system.autoLogoutEnabled
+                      ? 'bg-[#0f172a] text-white'
+                      : 'text-[#64748b]'
+                  }`}
+                >
+                  사용 안 함
+                </button>
+              </div>
+            </div>
+
+            {draftConfig.system.autoLogoutEnabled && (
+              <div className="pt-2 border-t border-[#e2e8f0] space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11.5px] font-semibold text-[#334155]">
+                    실무 권장 대기 시간 빠른 선택
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-[#64748b] font-medium">직접 입력:</span>
+                    <input
+                      type="number"
+                      min={10}
+                      max={86400}
+                      disabled={!canControlServer}
+                      value={draftConfig.system.autoLogoutSeconds || 600}
+                      onChange={(e) =>
+                        setDraftConfig({
+                          ...draftConfig,
+                          system: {
+                            ...draftConfig.system,
+                            autoLogoutSeconds: Math.max(10, Number(e.target.value) || 60)
+                          }
+                        })
+                      }
+                      onBlur={() => applyAndSaveConfig(draftConfig)}
+                      className="w-[78px] h-[27px] px-2 rounded-[5px] border border-[#cbd5e1] bg-white text-center font-extrabold text-[12px] text-[#2563eb]"
+                    />
+                    <span className="text-[11.5px] font-bold text-[#334155]">초</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1 flex-wrap">
+                  {AUTO_LOGOUT_PRESETS.map((preset) => {
+                    const selected = draftConfig.system.autoLogoutSeconds === preset.seconds
+                    return (
+                      <button
+                        key={preset.seconds}
+                        type="button"
+                        disabled={!canControlServer}
+                        onClick={() =>
+                          applyAndSaveConfig({
+                            ...draftConfig,
+                            system: {
+                              ...draftConfig.system,
+                              autoLogoutSeconds: preset.seconds
+                            }
+                          })
+                        }
+                        className={`h-[26px] px-2.5 rounded-[5px] text-[11px] font-bold border transition-colors cursor-pointer ${
+                          selected
+                            ? 'bg-[#2563eb] text-white border-[#2563eb]'
+                            : 'bg-white hover:bg-[#eff6ff] text-[#334155] border-[#cbd5e1]'
+                        }`}
+                      >
+                        {preset.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* 프로그램 시작 시 다중 접속 서버 자동 기동 */}
