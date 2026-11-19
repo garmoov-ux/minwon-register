@@ -1,0 +1,20 @@
+{
+  "server": {
+    "enabled": false,
+    "port": 8090,
+    "host": "0.0.0.0",
+    "autoStartOnBoot": false,
+    "allowRemoteWrite": true
+  },
+  "system": {
+    "minimizeToTray": true,
+    "startMinimized": false,
+    "requireLoginOnStart": true,
+    "autoBackupDaily": true,
+    "retentionDays": 365
+  },
+  "remoteClient": {
+    "mode": "LOCAL",
+    "remoteServerUrl": "http://127.0.0.1:8090"
+  }
+}

@@ -1,0 +1,42 @@
+appId: com.inno.minwonregister
+productName: MinwonRegister
+afterPack: resources/after-pack.cjs
+npmRebuild: false
+directories:
+  buildResources: build
+  output: release
+files:
+  - "!**/.vscode/*"
+  - "!src/*"
+  - "!tests/*"
+  - "!_ref/*"
+  - "!_ref_VBA/*"
+  - "!logs/*"
+  - "!data/*"
+  - "!Export/*"
+  - "!electron.vite.config.*"
+  - "!vitest.config.*"
+  - "!tsconfig.*"
+asarUnpack:
+  - "**/*.node"
+extraFiles:
+  - from: "config.json"
+    to: "config.json"
+win:
+  icon: resources/icon.ico
+  signAndEditExecutable: false
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+nsis:
+  artifactName: "MinwonRegister_Setup.exe"
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+portable:
+  artifactName: "MinwonRegister_Portable.exe"
