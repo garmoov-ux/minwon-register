@@ -17,11 +17,13 @@ export const IPC_CHANNELS = {
   MINWON_RESET_ALL: 'minwon:reset-all',
   MINWON_RELOAD_CSV: 'minwon:reload-csv',
 
-  // 무인교통단속장비 마스터 CRUD 및 통계
+  // 무인교통단속장비 마스터 CRUD 및 통계 / CSV 입출력
   DEVICE_LIST: 'minwon:device-list',
   DEVICE_UPSERT: 'minwon:device-upsert',
   DEVICE_DELETE: 'minwon:device-delete',
   DEVICE_RELOAD_CSV: 'minwon:device-reload-csv',
+  DEVICE_EXPORT_CSV: 'minwon:device-export-csv',
+  DEVICE_IMPORT_CSV: 'minwon:device-import-csv',
 
   // 코드 항목 관리 (접수구분, 구역구분, 검토결과)
   CODE_ADD: 'minwon:code-add',

@@ -25,7 +25,14 @@ import { UserRepository } from '../db/user-repo'
 import { MinwonRepository } from '../db/minwon-repo'
 import { DeviceRepository } from '../db/device-repo'
 import { CodeRepository } from '../db/code-repo'
-import { loadDevicesFromCsv, loadMinwonFromCsv } from '../db/seed'
+import fs from 'fs'
+import {
+  buildDevicesCsvContent,
+  loadDevicesFromCsv,
+  loadMinwonFromCsv,
+  normalizeMinwonDocumentNumbers,
+  validateAndImportDevicesCsvBuffer
+} from '../db/seed'
 import { Database } from 'better-sqlite3'
 import {
   exportDeviceOperationStatsToExcel,
@@ -65,8 +72,11 @@ export function canUserControlServer(user: UserAccount | null, config: AppConfig
 
 export function registerIpcHandlers(ctx: IpcContext): void {
   const getActorName = (): string => ctx.getCurrentUser()?.username || 'admin'
+  // 기존 민원 데이터의 문서(접수)번호를 각 접수일자 기준 JSPD-YYYY-MM-DD-01 형식으로 자동 보정
+  normalizeMinwonDocumentNumbers(ctx.db)
 
   ipcMain.handle(IPC_CHANNELS.GET_SNAPSHOT, (): AppSnapshot => {
+    normalizeMinwonDocumentNumbers(ctx.db)
     return ctx.buildSnapshot()
   })
 
@@ -421,6 +431,125 @@ export function registerIpcHandlers(ctx: IpcContext): void {
           : '단속장비 마스터 파일을 찾을 수 없습니다.'
     }
   })
+
+  // 단속장비 마스터 CSV 내보내기 (UTF-8 with BOM 인코딩으로 윈도우 엑셀 한글 완벽 호환)
+  ipcMain.handle(
+    IPC_CHANNELS.DEVICE_EXPORT_CSV,
+    async (
+      _e,
+      params?: { keyword?: string; zoneType?: string; enforcementType?: string }
+    ): Promise<ActionResult<{ filePath: string; count: number }>> => {
+      const devices = ctx.deviceRepo.listDevices(
+        params?.keyword,
+        params?.zoneType,
+        params?.enforcementType
+      )
+      const { exportDir } = resolveAppPaths()
+      const now = new Date()
+      const dateTag = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(
+        now.getDate()
+      ).padStart(2, '0')}`
+      const defaultName = `무인교통단속장비_마스터목록_${dateTag}.csv`
+      let targetPath = path.join(exportDir, defaultName)
+
+      const win = ctx.getMainWindow()
+      if (win) {
+        const saveRes = await dialog.showSaveDialog(win, {
+          title: '무인교통단속장비 마스터 CSV 파일 내보내기',
+          defaultPath: targetPath,
+          filters: [{ name: 'CSV 문서 (*.csv)', extensions: ['csv'] }]
+        })
+        if (saveRes.canceled || !saveRes.filePath) {
+          return { ok: false, message: '단속장비 CSV 내보내기가 취소되었습니다.' }
+        }
+        targetPath = saveRes.filePath.endsWith('.csv')
+          ? saveRes.filePath
+          : `${saveRes.filePath}.csv`
+      }
+
+      const csvContent = buildDevicesCsvContent(devices)
+      fs.mkdirSync(path.dirname(targetPath), { recursive: true })
+      fs.writeFileSync(targetPath, Buffer.from(csvContent, 'utf-8'))
+
+      ctx.userRepo.recordAudit({
+        username: getActorName(),
+        action: '장비 CSV 내보내기',
+        targetType: '단속장비',
+        targetId: 'CSV출력',
+        detail: `${devices.length}대 -> ${path.basename(targetPath)}`
+      })
+      ctx.broadcastUpdate()
+      return {
+        ok: true,
+        message: `단속장비 마스터 CSV 파일(${devices.length}대)이 저장되었습니다: ${targetPath}`,
+        data: { filePath: targetPath, count: devices.length }
+      }
+    }
+  )
+
+  // 단속장비 마스터 CSV 가져오기 (UTF-8 / CP949 자동 인코딩 판별 및 9개 필드 정합성 검증)
+  ipcMain.handle(
+    IPC_CHANNELS.DEVICE_IMPORT_CSV,
+    async (): Promise<
+      ActionResult<{ count: number; errorCode?: string; errorDetail?: string }>
+    > => {
+      const win = ctx.getMainWindow()
+      if (!win) {
+        return { ok: false, message: '파일 선택 창을 열 수 없습니다.' }
+      }
+
+      const openRes = await dialog.showOpenDialog(win, {
+        title: '무인교통단속장비 마스터 CSV 파일 가져오기',
+        properties: ['openFile'],
+        filters: [{ name: 'CSV 문서 (*.csv)', extensions: ['csv'] }]
+      })
+
+      if (openRes.canceled || openRes.filePaths.length === 0) {
+        return { ok: false, message: 'CSV 파일 가져오기가 취소되었습니다.' }
+      }
+
+      const selectedPath = openRes.filePaths[0]
+      try {
+        const rawBuf = fs.readFileSync(selectedPath)
+        const result = validateAndImportDevicesCsvBuffer(ctx.db, rawBuf)
+        if (!result.ok) {
+          return {
+            ok: false,
+            message: 'CSV 파일의 필드 구성이 표준 양식과 일치하지 않습니다.',
+            data: {
+              count: 0,
+              errorCode: 'INVALID_CSV_FIELDS',
+              errorDetail: result.errorDetail
+            }
+          }
+        }
+
+        ctx.userRepo.recordAudit({
+          username: getActorName(),
+          action: '장비 CSV 가져오기',
+          targetType: '단속장비',
+          targetId: path.basename(selectedPath),
+          detail: `CSV 파일에서 단속장비 ${result.count}대 일괄 등록/갱신`
+        })
+        ctx.broadcastUpdate()
+        return {
+          ok: true,
+          message: `CSV 파일에서 단속장비 총 ${result.count}대를 성공적으로 가져왔습니다.`,
+          data: { count: result.count }
+        }
+      } catch (err) {
+        return {
+          ok: false,
+          message: 'CSV 파일을 읽는 중 오류가 발생했습니다.',
+          data: {
+            count: 0,
+            errorCode: 'INVALID_CSV_FIELDS',
+            errorDetail: `파일 읽기 실패: ${(err as Error).message}`
+          }
+        }
+      }
+    }
+  )
 
   // 4. 코드 항목 관리 (접수구분, 구역구분, 검토결과)
   ipcMain.handle(

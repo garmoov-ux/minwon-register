@@ -368,6 +368,26 @@ export const unifiedApiClient = {
     return { ok: false, message: '장비 CSV 원본 재적재는 로컬 서버에서 수행해 주세요.' }
   },
 
+  async exportDevicesCsv(params?: {
+    keyword?: string
+    zoneType?: string
+    enforcementType?: string
+  }): Promise<ActionResult<{ filePath: string; count: number }>> {
+    if (window.minwonApi) {
+      return window.minwonApi.exportDevicesCsv(params)
+    }
+    return { ok: false, message: '장비 CSV 내보내기는 데스크톱 프로그램에서 지원됩니다.' }
+  },
+
+  async importDevicesCsv(): Promise<
+    ActionResult<{ count: number; errorCode?: string; errorDetail?: string }>
+  > {
+    if (window.minwonApi) {
+      return window.minwonApi.importDevicesCsv()
+    }
+    return { ok: false, message: '장비 CSV 가져오기는 데스크톱 프로그램에서 지원됩니다.' }
+  },
+
   async addCodeItem(category: CodeCategory, value: string): Promise<ActionResult> {
     if (!shouldUseRestApi() && window.minwonApi) {
       return window.minwonApi.addCodeItem({ category, value })

@@ -78,6 +78,17 @@ export const minwonApi = {
   reloadDeviceCsv: (): Promise<ActionResult> =>
     ipcRenderer.invoke(IPC_CHANNELS.DEVICE_RELOAD_CSV),
 
+  exportDevicesCsv: (params?: {
+    keyword?: string
+    zoneType?: string
+    enforcementType?: string
+  }): Promise<ActionResult<{ filePath: string; count: number }>> =>
+    ipcRenderer.invoke(IPC_CHANNELS.DEVICE_EXPORT_CSV, params),
+
+  importDevicesCsv: (): Promise<
+    ActionResult<{ count: number; errorCode?: string; errorDetail?: string }>
+  > => ipcRenderer.invoke(IPC_CHANNELS.DEVICE_IMPORT_CSV),
+
   addCodeItem: (params: { category: CodeCategory; value: string }): Promise<ActionResult> =>
     ipcRenderer.invoke(IPC_CHANNELS.CODE_ADD, params),
 

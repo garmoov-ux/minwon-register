@@ -5,7 +5,12 @@ import { UserRepository } from '../src/main/db/user-repo'
 import { MinwonRepository } from '../src/main/db/minwon-repo'
 import { DeviceRepository } from '../src/main/db/device-repo'
 import { CodeRepository } from '../src/main/db/code-repo'
-import { convertExcelSerialToIsoDate } from '../src/main/db/seed'
+import {
+  buildDevicesCsvContent,
+  convertExcelSerialToIsoDate,
+  validateAndImportDevicesCsvBuffer
+} from '../src/main/db/seed'
+import iconv from 'iconv-lite'
 import { computeQuickDateRange, generateJspdDocumentNo } from '../src/shared/date-ranges'
 import { buildStandardXlsxBuffer } from '../src/main/excel/excel-service'
 
@@ -35,8 +40,32 @@ describe('MinwonRegister 도메인 로직, datadb.csv(114건), 단속장비 487�
     const firstRecord = minwonRepo.getById(1)
     expect(firstRecord?.complainantName).toBe('고방실')
     expect(firstRecord?.receivedDate).toBe('2026-01-05')
+    expect(firstRecord?.receptionNo).toBe('JSPD-2026-01-05-01')
     expect(firstRecord?.reviewDate).toBe('2026-02-03')
     expect(firstRecord?.reviewResult).toBe('불합리')
+
+    // 동일 날짜(2026-01-22) 민원 2건(연번 5, 6)이 JSPD-2026-01-22-01, 02로 정규화되었는지 확인
+    expect(minwonRepo.getById(5)?.receptionNo).toBe('JSPD-2026-01-22-01')
+    expect(minwonRepo.getById(6)?.receptionNo).toBe('JSPD-2026-01-22-02')
+
+    // 단속장비 CSV 내보내기(UTF-8 BOM) 및 가져오기(CP949 / 필드 불일치 오류 검증)
+    const allDevices = deviceRepo.listDevices()
+    const csvText = buildDevicesCsvContent(allDevices.slice(0, 3))
+    expect(csvText.startsWith('\uFEFF설치년도,장비번호,장비명,위치,제조사,유형,단속종류,제한속도,보호구역명')).toBe(
+      true
+    )
+
+    // 윈도우 엑셀 CP949 인코딩으로 저장된 CSV 가져오기 테스트
+    const cp949Buf = iconv.encode(csvText.replace(/^\uFEFF/, ''), 'cp949')
+    const importOk = validateAndImportDevicesCsvBuffer(db, cp949Buf)
+    expect(importOk.ok).toBe(true)
+    expect(importOk.count).toBe(3)
+
+    // 필드가 맞지 않는 잘못된 CSV 가져오기 시 오류 반환 검증
+    const badCsvBuf = Buffer.from('연번,잘못된헤더,위치\n1,테스트,제주', 'utf-8')
+    const importFail = validateAndImportDevicesCsvBuffer(db, badCsvBuf)
+    expect(importFail.ok).toBe(false)
+    expect(importFail.errorDetail).toContain('9개 열')
 
     const stats = deviceRepo.computeOperationStats()
     expect(stats.totals.totalCount).toBe(487)

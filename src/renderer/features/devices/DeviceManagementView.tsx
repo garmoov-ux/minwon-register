@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import {
+  AlertTriangle,
+  Download,
   Edit3,
   FileSpreadsheet,
   Plus,
@@ -9,6 +11,7 @@ import {
   Search,
   Table2,
   Trash2,
+  Upload,
   X
 } from 'lucide-react'
 import {
@@ -46,6 +49,12 @@ export const DeviceManagementView: React.FC<DeviceManagementViewProps> = ({
   // 우측 사이드패널 (신규 장비 등록 또는 선택된 장비 상세/수정)
   const [editingDevice, setEditingDevice] = useState<TrafficDeviceUpsertPayload | null>(null)
   const [isNewDeviceMode, setIsNewDeviceMode] = useState<boolean>(false)
+
+  // CSV 가져오기 필드 불일치 오류 모달 (관리자 문의 안내)
+  const [csvErrorModal, setCsvErrorModal] = useState<{
+    title: string
+    detail: string
+  } | null>(null)
 
   const openNewDevicePanel = (): void => {
     setSubMode('MASTER_LIST')
@@ -109,6 +118,35 @@ export const DeviceManagementView: React.FC<DeviceManagementViewProps> = ({
     if (subMode === 'MASTER_LIST') {
       await loadDeviceList()
     }
+  }
+
+  const handleExportDevicesCsv = async (): Promise<void> => {
+    const res = await unifiedApiClient.exportDevicesCsv({
+      keyword,
+      zoneType: zoneFilter === '전체' ? '' : zoneFilter,
+      enforcementType: typeFilter === '전체' ? '' : typeFilter
+    })
+    onShowToast(res.message)
+  }
+
+  const handleImportDevicesCsv = async (): Promise<void> => {
+    const res = await unifiedApiClient.importDevicesCsv()
+    if (!res.ok) {
+      if (res.data?.errorDetail || res.data?.errorCode === 'INVALID_CSV_FIELDS') {
+        setCsvErrorModal({
+          title: '단속장비 CSV 파일 양식 및 필드 불일치 오류',
+          detail:
+            res.data.errorDetail ||
+            'CSV 파일의 열(필드) 구성이 표준 단속장비 양식과 일치하지 않습니다.'
+        })
+      } else {
+        onShowToast(res.message)
+      }
+      return
+    }
+    onShowToast(res.message)
+    await onRefreshSnapshot()
+    await loadDeviceList()
   }
 
   const handleSaveDevice = async (e: React.FormEvent): Promise<void> => {
@@ -546,8 +584,8 @@ export const DeviceManagementView: React.FC<DeviceManagementViewProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="relative w-[250px]">
+            <div className="flex items-center gap-1.5 shrink-0">
+              <div className="relative w-[220px]">
                 <Search className="w-3.5 h-3.5 text-[#64748b] absolute left-2.5 top-2" />
                 <input
                   type="text"
@@ -557,6 +595,37 @@ export const DeviceManagementView: React.FC<DeviceManagementViewProps> = ({
                   className="w-full h-[28px] pl-7.5 pr-2.5 rounded-[6px] border border-[#cbd5e1] bg-[#f8fafc] focus:bg-white text-[12px]"
                 />
               </div>
+
+              <div className="h-[28px] px-2.5 rounded-[6px] bg-[#eff6ff] border border-[#bfdbfe] text-[#1d4ed8] text-[12px] font-extrabold inline-flex items-center gap-1 shrink-0">
+                <span>검색</span>
+                <span>{devices.length.toLocaleString()}대</span>
+                <span className="text-[11px] font-medium text-[#64748b]">
+                  / 전체 {totalDeviceCount.toLocaleString()}대
+                </span>
+              </div>
+
+              <PillButton
+                variant="pearl-capsule"
+                size="sm"
+                onClick={() => void handleExportDevicesCsv()}
+                title="현재 조회된 단속장비 목록을 한글이 깨지지 않는 CSV 파일로 내보냅니다"
+              >
+                <Download className="w-3.5 h-3.5 text-[#2563eb]" />
+                <span>CSV 내보내기</span>
+              </PillButton>
+
+              {canWrite && (
+                <PillButton
+                  variant="pearl-capsule"
+                  size="sm"
+                  onClick={() => void handleImportDevicesCsv()}
+                  title="엑셀에서 편집한 단속장비 CSV 파일을 가져와 일괄 등록/수정합니다"
+                >
+                  <Upload className="w-3.5 h-3.5 text-[#059669]" />
+                  <span>CSV 가져오기</span>
+                </PillButton>
+              )}
+
               {canWrite && (
                 <PillButton variant="primary" size="sm" onClick={openNewDevicePanel}>
                   <Plus className="w-3.5 h-3.5" />
@@ -909,6 +978,61 @@ export const DeviceManagementView: React.FC<DeviceManagementViewProps> = ({
                 </form>
               </aside>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* CSV 가져오기 필드 불일치 오류 모달 (관리자 문의 안내) */}
+      {csvErrorModal && (
+        <div
+          className="fixed inset-0 z-50 bg-[#090d16]/65 backdrop-blur-xs flex items-center justify-center p-4"
+          onClick={() => setCsvErrorModal(null)}
+        >
+          <div
+            className="w-[460px] rounded-[13px] bg-white border border-[#cbd5e1] overflow-hidden apple-product-shadow"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-[#090d16] text-white px-4 py-3 flex items-center justify-between border-b border-[#1e293b]">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-[#f59e0b]" />
+                <span className="text-[13.5px] font-bold">{csvErrorModal.title}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCsvErrorModal(null)}
+                className="w-6 h-6 rounded-[5px] bg-[#1e293b] hover:bg-[#334155] text-slate-300 flex items-center justify-center cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-3 text-[12.5px]">
+              <div className="rounded-[8px] bg-[#fef2f2] border border-[#fecaca] p-3 text-[#b91c1c] font-semibold leading-relaxed">
+                {csvErrorModal.detail}
+              </div>
+
+              <div className="rounded-[8px] bg-[#f8fafc] border border-[#cbd5e1] p-3 space-y-1.5 text-[12px] text-[#334155]">
+                <div className="font-extrabold text-[#0f172a]">
+                  표준 단속장비 CSV 필수 9개 필드(열) 순서
+                </div>
+                <div className="text-[11.5px] font-mono bg-white border border-[#e2e8f0] rounded-[5px] px-2.5 py-1.5 text-[#1d4ed8] font-bold">
+                  설치년도, 장비번호, 장비명, 위치, 제조사, 유형, 단속종류, 제한속도, 보호구역명
+                </div>
+                <p className="text-[11.5px] text-[#dc2626] font-bold pt-1">
+                  * 파일 양식이나 필드 구성이 맞지 않아 가져오기를 중단했습니다. 먼저 [CSV 내보내기]로 표준 양식을 내려받아 편집하시거나, 시스템 관리자에게 문의해 주세요.
+                </p>
+              </div>
+
+              <div className="flex justify-end pt-1">
+                <PillButton
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setCsvErrorModal(null)}
+                >
+                  확인
+                </PillButton>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -262,6 +262,9 @@ export function buildDeviceStatsReportFiles(
 
   const sheetXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheetPr>
+    <pageSetUpPr fitToPage="1"/>
+  </sheetPr>
   <sheetViews>
     <sheetView tabSelected="1" workbookViewId="0"/>
   </sheetViews>
@@ -278,9 +281,9 @@ export function buildDeviceStatsReportFiles(
     <mergeCell ref="A1:M1"/>
     <mergeCell ref="A${totalRowNum}:B${totalRowNum}"/>
   </mergeCells>
-  <printOptions horizontalCentered="1"/>
-  <pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/>
-  <pageSetup paperSize="9" scale="73" fitToHeight="0" orientation="landscape"/>
+  <printOptions horizontalCentered="1" verticalCentered="0"/>
+  <pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.25" footer="0.25"/>
+  <pageSetup paperSize="9" fitToWidth="1" fitToHeight="0" orientation="landscape"/>
   <headerFooter>
     <oddFooter>${footerText}</oddFooter>
   </headerFooter>

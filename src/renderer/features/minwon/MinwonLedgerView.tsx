@@ -121,6 +121,7 @@ export const MinwonLedgerView: React.FC<MinwonLedgerViewProps> = ({
   }, [
     refreshTick,
     division,
+    keyword,
     reviewResult,
     zoneType,
     receivedStartDate,
@@ -344,6 +345,14 @@ export const MinwonLedgerView: React.FC<MinwonLedgerViewProps> = ({
             <RotateCcw className="w-3.5 h-3.5 text-[#64748b]" />
             <span>초기화</span>
           </PillButton>
+
+          <div className="h-[28px] px-2.5 rounded-[6px] bg-[#eff6ff] border border-[#bfdbfe] text-[#1d4ed8] text-[12px] font-extrabold inline-flex items-center gap-1 shrink-0">
+            <span>검색 결과</span>
+            <span>{records.length.toLocaleString()}건</span>
+            <span className="text-[11px] font-medium text-[#64748b]">
+              / 전체 {summary.totalMinwonCount.toLocaleString()}건
+            </span>
+          </div>
         </div>
 
         {/* 2행: 접수일자 빠른 기간 & 공단 검토일자 빠른 기간 (한 줄 정렬) */}
@@ -447,7 +456,7 @@ export const MinwonLedgerView: React.FC<MinwonLedgerViewProps> = ({
                 <th className="py-2.5 px-2 text-center w-[48px]">연번</th>
                 <th className="py-2.5 px-2 text-center w-[92px]">접수일자</th>
                 <th className="py-2.5 px-2 text-center w-[96px]">접수구분</th>
-                <th className="py-2.5 px-2 text-center w-[92px]">접수번호</th>
+                <th className="py-2.5 px-2 text-center w-[138px]">문서(접수)번호</th>
                 <th className="py-2.5 px-2 text-center w-[88px]">이름</th>
                 <th className="py-2.5 px-2 text-center w-[112px]">연락처</th>
                 <th className="py-2.5 px-2.5 w-[210px]">위치</th>
@@ -506,7 +515,10 @@ export const MinwonLedgerView: React.FC<MinwonLedgerViewProps> = ({
                           {r.receptionType || '-'}
                         </span>
                       </td>
-                      <td className="py-1.5 px-2 text-center text-[#334155] truncate" title={r.receptionNo}>
+                      <td
+                        className="py-1.5 px-2 text-center font-bold text-[#2563eb] truncate"
+                        title={r.receptionNo}
+                      >
                         {r.receptionNo || '-'}
                       </td>
                       <td
