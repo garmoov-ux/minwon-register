@@ -130,18 +130,21 @@ export class LanDiscoveryService {
  */
 export async function discoverLanMinwonServers(
   defaultPort = 8090,
-  timeoutMs = 750
+  timeoutMs = 380
 ): Promise<DiscoveredMinwonServer[]> {
   const discovered = new Map<string, DiscoveredMinwonServer>()
   const adapters = listNetworkAdapters()
+  const myIps = new Set(adapters.map((a) => a.address))
 
   await new Promise<void>((resolve) => {
     let closed = false
+    let earlyTimer: NodeJS.Timeout | null = null
     const sock = dgram.createSocket({ type: 'udp4', reuseAddr: true })
 
     const finish = (): void => {
       if (closed) return
       closed = true
+      if (earlyTimer) clearTimeout(earlyTimer)
       try {
         sock.close()
       } catch {
@@ -166,6 +169,7 @@ export async function discoverLanMinwonServers(
         const host = parsed.host || rinfo.address
         const port = parsed.port || defaultPort
         const url = parsed.url || `http://${host}:${port}`
+        // 내 컴퓨터가 아닌 외부 PC 서버를 우선 정렬하기 위해 저장
         discovered.set(url, {
           host,
           port,
@@ -173,6 +177,10 @@ export async function discoverLanMinwonServers(
           serverName: parsed.serverName || host,
           adminName: parsed.adminName || '자치경찰 민원접수대장 서버'
         })
+        // 첫 응답 수신 후 80ms만 추가 대기하고 즉시 반환하여 로그인 체감 지연 제거
+        if (!earlyTimer) {
+          earlyTimer = setTimeout(finish, 80)
+        }
       } catch {
         // ignore
       }
@@ -193,5 +201,8 @@ export async function discoverLanMinwonServers(
     })
   })
 
-  return Array.from(discovered.values())
+  // 다른 PC에서 열린 서버를 내 로컬 IP보다 우선 정렬
+  return Array.from(discovered.values()).sort(
+    (a, b) => Number(myIps.has(a.host)) - Number(myIps.has(b.host))
+  )
 }

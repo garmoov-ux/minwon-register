@@ -133,64 +133,22 @@ export const unifiedApiClient = {
       return res
     }
 
-    // 2. 데스크톱 프로그램에서 로그인 시: 로컬 대장 즉시 인증 + 백그라운드/타임아웃 안전한 서버 자동 탐색
+    // 2. 데스크톱 프로그램에서 로그인 시: 내 PC 서버가 꺼져 있으면 사내망에 켜진 다중 접속 서버를 자동 탐색해 연결(일반사용자·관리자 모두 지원)
     if (window.minwonApi) {
-      // 먼저 로컬 DB로 지연 없이 즉시 인증 시도
-      const localRes = await window.minwonApi.login(payload)
-      if (localRes.ok && localRes.data) {
-        const role = localRes.data.user.role
-        const snap = await window.minwonApi.getSnapshot()
-        const isLocalHostServer = snap.serverStatus.running
+      const snap = await window.minwonApi.getSnapshot()
+      const isLocalHostServer = snap.serverStatus.running
 
-        // 일반 사용자(USER)이고 내 PC에서 서버가 켜져 있지 않을 때만 500ms 타임아웃으로 사내망 원격 서버 탐색
-        if (role === 'USER' && !isLocalHostServer && typeof window.minwonApi.discoverServers === 'function') {
-          try {
-            const discovered = await Promise.race([
-              window.minwonApi.discoverServers(),
-              new Promise<never[]>((resolve) => setTimeout(() => resolve([]), 500))
-            ])
-            if (discovered.length > 0) {
-              const remoteTargetUrl = discovered[0].url
-              const controller = new AbortController()
-              const timer = setTimeout(() => controller.abort(), 800)
-              const remoteRes = await fetch(`${remoteTargetUrl}/api/v1/auth/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-                signal: controller.signal
-              })
-              clearTimeout(timer)
-              const remoteData = (await remoteRes.json()) as ActionResult<AuthSession>
-              if (remoteData.ok && remoteData.data) {
-                setClientConnectionConfig('REMOTE', remoteTargetUrl)
-                saveAuthSession(remoteData.data)
-                return {
-                  ...remoteData,
-                  message: `${remoteData.data.user.displayName}님 다중 접속 서버(${discovered[0].serverName})에 자동 연결되었습니다.`
-                }
-              }
-            }
-          } catch {
-            // 원격 서버가 없거나 타임아웃되면 로컬 모드로 즉시 진행
-          }
-        }
-
-        setClientConnectionConfig('LOCAL', 'http://127.0.0.1:8090')
-        saveAuthSession(localRes.data)
-        return localRes
-      }
-
-      // 로컬 DB에 없는 계정(원격 서버에서 새로 추가된 계정)일 경우 사내망 원격 서버 탐색 시도
-      if (typeof window.minwonApi.discoverServers === 'function') {
+      // 내 PC가 서버 호스트가 아닐 때: 사내망에 켜져 있는 다중 접속 서버를 먼저 자동 탐색 (응답 시 ~80ms 내 즉시 발견)
+      if (!isLocalHostServer && typeof window.minwonApi.discoverServers === 'function') {
         try {
           const discovered = await Promise.race([
             window.minwonApi.discoverServers(),
-            new Promise<never[]>((resolve) => setTimeout(() => resolve([]), 600))
+            new Promise<never[]>((resolve) => setTimeout(() => resolve([]), 550))
           ])
           if (discovered.length > 0) {
             const remoteTargetUrl = discovered[0].url
             const controller = new AbortController()
-            const timer = setTimeout(() => controller.abort(), 1000)
+            const timer = setTimeout(() => controller.abort(), 900)
             const remoteRes = await fetch(`${remoteTargetUrl}/api/v1/auth/login`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -202,14 +160,23 @@ export const unifiedApiClient = {
             if (remoteData.ok && remoteData.data) {
               setClientConnectionConfig('REMOTE', remoteTargetUrl)
               saveAuthSession(remoteData.data)
-              return remoteData
+              return {
+                ...remoteData,
+                message: `${remoteData.data.user.displayName}님 사내망 다중 접속 서버(${discovered[0].serverName} · ${remoteTargetUrl})에 자동 연결되었습니다.`
+              }
             }
           }
         } catch {
-          // ignore
+          // 사내망에 켜진 원격 서버가 없으면 즉시 로컬 대장 인증으로 진행
         }
       }
 
+      // 내 PC가 서버 호스트이거나 사내망에 켜진 다른 서버가 없을 때: 로컬 DB 인증
+      const localRes = await window.minwonApi.login(payload)
+      if (localRes.ok && localRes.data) {
+        setClientConnectionConfig('LOCAL', 'http://127.0.0.1:8090')
+        saveAuthSession(localRes.data)
+      }
       return localRes
     }
 
