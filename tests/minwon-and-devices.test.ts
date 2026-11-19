@@ -6,7 +6,7 @@ import { MinwonRepository } from '../src/main/db/minwon-repo'
 import { DeviceRepository } from '../src/main/db/device-repo'
 import { CodeRepository } from '../src/main/db/code-repo'
 import { convertExcelSerialToIsoDate } from '../src/main/db/seed'
-import { computeQuickDateRange } from '../src/shared/date-ranges'
+import { computeQuickDateRange, generateJspdDocumentNo } from '../src/shared/date-ranges'
 import { buildStandardXlsxBuffer } from '../src/main/excel/excel-service'
 
 describe('MinwonRegister 도메인 로직, datadb.csv(114건), 단속장비 487대 통계 정합성 테스트', () => {
@@ -144,6 +144,21 @@ describe('MinwonRegister 도메인 로직, datadb.csv(114건), 단속장비 487�
     const thisMonth = computeQuickDateRange('THIS_MONTH', refDate)
     expect(thisMonth.startDate).toBe('2026-11-01')
     expect(thisMonth.endDate).toBe('2026-11-30')
+
+    // 관공서 문서번호(JSPD-YYYY-MM-DD-01, 02, 03) 자동 생성 검증
+    const docNo1 = generateJspdDocumentNo('2026-11-19', [])
+    expect(docNo1).toBe('JSPD-2026-11-19-01')
+
+    const docNo2 = generateJspdDocumentNo('2026-11-19', [
+      { receivedDate: '2026-11-19', receptionNo: 'JSPD-2026-11-19-01' }
+    ])
+    expect(docNo2).toBe('JSPD-2026-11-19-02')
+
+    const docNo3 = generateJspdDocumentNo('2026-11-19', [
+      { receivedDate: '2026-11-19', receptionNo: 'JSPD-2026-11-19-01' },
+      { receivedDate: '2026-11-19', receptionNo: 'JSPD-2026-11-19-02' }
+    ])
+    expect(docNo3).toBe('JSPD-2026-11-19-03')
 
     const buf = buildStandardXlsxBuffer({
       sheetName: '전체',

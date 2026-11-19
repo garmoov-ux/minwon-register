@@ -1,21 +1,23 @@
 import React, { useEffect, useState } from 'react'
 import {
   CheckCircle2,
+  ClipboardList,
+  Copy,
+  Edit3,
   FilePlus2,
   MapPin,
-  Radio,
   RotateCcw,
   Save,
   Search,
-  Trash2
+  Trash2,
+  User
 } from 'lucide-react'
 import {
   CodeCategory,
   MinwonRecord,
-  MinwonUpsertPayload,
-  TrafficDevice
+  MinwonUpsertPayload
 } from '@shared/types/domain'
-import { formatIsoDate } from '@shared/date-ranges'
+import { formatIsoDate, generateJspdDocumentNo } from '@shared/date-ranges'
 import { unifiedApiClient } from '../../services/api-client'
 import { UtilityCard } from '../../components/ui/UtilityCard'
 import { PillButton } from '../../components/ui/PillButton'
@@ -52,6 +54,9 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
 }) => {
   const todayStr = formatIsoDate(new Date())
 
+  const [allMinwonRecords, setAllMinwonRecords] = useState<MinwonRecord[]>([])
+  const [editingTarget, setEditingTarget] = useState<MinwonRecord | null>(initialRecord)
+
   const [id, setId] = useState<number>(initialRecord?.id || nextSuggestedId)
   const [receivedDate, setReceivedDate] = useState<string>(
     initialRecord?.receivedDate || todayStr
@@ -60,7 +65,7 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
     initialRecord?.receptionType || codes.접수구분[0] || '국민신문고'
   )
   const [receptionNo, setReceptionNo] = useState<string>(
-    initialRecord?.receptionNo || String(nextSuggestedId)
+    initialRecord?.receptionNo || `JSPD-${todayStr}-01`
   )
   const [complainantName, setComplainantName] = useState<string>(
     initialRecord?.complainantName || ''
@@ -79,14 +84,29 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
     initialRecord?.improvementResult || ''
   )
   const [note, setNote] = useState<string>(initialRecord?.note || '')
-  const [deviceId, setDeviceId] = useState<string>(initialRecord?.deviceId || '')
 
-  // 우측 단속장비 위치 빠른 검색 연동
-  const [deviceSearchKw, setDeviceSearchKw] = useState<string>('')
-  const [deviceZoneFilter, setDeviceZoneFilter] = useState<string>('전체')
-  const [deviceList, setDeviceList] = useState<TrafficDevice[]>([])
+  // 우측: 기존 민원접수대장 검색 및 값 가져오기 패널 상태
+  const [minwonSearchKw, setMinwonSearchKw] = useState<string>('')
+  const [minwonResultFilter, setMinwonResultFilter] = useState<string>('전체')
+  const [selectedRefId, setSelectedRefId] = useState<number | null>(initialRecord?.id || null)
+
+  const loadExistingMinwon = async (): Promise<MinwonRecord[]> => {
+    const list = await unifiedApiClient.listMinwon({})
+    setAllMinwonRecords(list)
+    return list
+  }
 
   useEffect(() => {
+    void loadExistingMinwon().then((list) => {
+      if (!initialRecord) {
+        const autoDocNo = generateJspdDocumentNo(todayStr, list)
+        setReceptionNo(autoDocNo)
+      }
+    })
+  }, [])
+
+  useEffect(() => {
+    setEditingTarget(initialRecord)
     if (initialRecord) {
       setId(initialRecord.id)
       setReceivedDate(initialRecord.receivedDate)
@@ -101,30 +121,30 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
       setReviewResult(initialRecord.reviewResult)
       setImprovementResult(initialRecord.improvementResult)
       setNote(initialRecord.note)
-      setDeviceId(initialRecord.deviceId)
+      setSelectedRefId(initialRecord.id)
     } else {
       setId(nextSuggestedId)
-      setReceptionNo(String(nextSuggestedId))
+      setReceptionNo(generateJspdDocumentNo(receivedDate, allMinwonRecords))
+      setSelectedRefId(null)
     }
   }, [initialRecord, nextSuggestedId])
 
-  useEffect(() => {
-    const loadDevices = async (): Promise<void> => {
-      const list = await unifiedApiClient.listDevices({
-        keyword: deviceSearchKw,
-        zoneType: deviceZoneFilter === '전체' ? '' : deviceZoneFilter
-      })
-      setDeviceList(list.slice(0, 80))
+  const handleReceivedDateChange = (nextDate: string): void => {
+    setReceivedDate(nextDate)
+    // 신규 작성 중이고 문서번호가 자동 채번 형식(JSPD-...)일 때 접수일자에 맞춰 자동 갱신
+    if (!editingTarget && (!receptionNo.trim() || receptionNo.startsWith('JSPD-'))) {
+      setReceptionNo(generateJspdDocumentNo(nextDate, allMinwonRecords))
     }
-    void loadDevices()
-  }, [deviceSearchKw, deviceZoneFilter])
+  }
 
   const handleResetNew = (): void => {
     onClearInitial()
+    setEditingTarget(null)
+    setSelectedRefId(null)
     setId(nextSuggestedId)
     setReceivedDate(todayStr)
     setReceptionType(codes.접수구분[0] || '국민신문고')
-    setReceptionNo(String(nextSuggestedId))
+    setReceptionNo(generateJspdDocumentNo(todayStr, allMinwonRecords))
     setComplainantName('')
     setContact('')
     setLocation('')
@@ -134,25 +154,48 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
     setReviewResult('대기중')
     setImprovementResult('')
     setNote('')
-    setDeviceId('')
   }
 
-  const handleSelectDevice = (d: TrafficDevice): void => {
-    setDeviceId(d.deviceId)
-    setLocation(`${d.location} [${d.deviceId} ${d.deviceName}]`)
-    setZoneType(d.zoneType)
-    if (!note.includes(d.deviceId)) {
+  /**
+   * 우측 기존 민원 카드 클릭 시: 신규 작성 중이면 위치/구역구분/민원내용 등을 현재 폼으로 가져오고,
+   *[이 민원 수정] 버튼을 누르면 해당 연번의 수정 모드로 전환한다.
+   */
+  const handleCopyFromExisting = (rec: MinwonRecord): void => {
+    setSelectedRefId(rec.id)
+    setLocation(rec.location)
+    setZoneType(rec.zoneType || '일반구역')
+    setContent(rec.content)
+    if (rec.receptionType) setReceptionType(rec.receptionType)
+    if (!note.includes(`#${rec.id}`)) {
       setNote((prev) =>
         prev
-          ? `${prev} / 장비:${d.deviceId}(${d.enforcementType} ${d.speedLimit}km)`
-          : `장비:${d.deviceId}(${d.enforcementType} ${d.speedLimit}km)`
+          ? `${prev} / 기존민원 참조(#${rec.id} ${rec.receivedDate} ${rec.reviewResult})`
+          : `기존민원 참조(#${rec.id} ${rec.receivedDate} ${rec.reviewResult})`
       )
     }
   }
 
+  const handleSwitchToEdit = (rec: MinwonRecord): void => {
+    setEditingTarget(rec)
+    setSelectedRefId(rec.id)
+    setId(rec.id)
+    setReceivedDate(rec.receivedDate)
+    setReceptionType(rec.receptionType)
+    setReceptionNo(rec.receptionNo)
+    setComplainantName(rec.complainantName)
+    setContact(rec.contact)
+    setLocation(rec.location)
+    setZoneType(rec.zoneType)
+    setContent(rec.content)
+    setReviewDate(rec.reviewDate)
+    setReviewResult(rec.reviewResult)
+    setImprovementResult(rec.improvementResult)
+    setNote(rec.note)
+  }
+
   const savePayload = async (stayAndNew: boolean): Promise<void> => {
     const ok = await onSaveRecord({
-      id: initialRecord ? initialRecord.id : id,
+      id: editingTarget ? editingTarget.id : id,
       receivedDate,
       receptionType,
       receptionNo,
@@ -164,15 +207,28 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
       reviewDate,
       reviewResult,
       improvementResult,
-      note,
-      deviceId
+      note
     })
     if (!ok) return
 
+    const updatedList = await loadExistingMinwon()
+
     if (stayAndNew) {
-      handleResetNew()
-      setId(id + 1)
-      setReceptionNo(String(id + 1))
+      onClearInitial()
+      setEditingTarget(null)
+      setSelectedRefId(null)
+      const nextId = id + 1
+      setId(nextId)
+      setReceivedDate(todayStr)
+      setReceptionNo(generateJspdDocumentNo(todayStr, updatedList))
+      setComplainantName('')
+      setContact('')
+      setLocation('')
+      setContent('')
+      setReviewDate('')
+      setReviewResult('대기중')
+      setImprovementResult('')
+      setNote('')
     } else {
       onBackToLedger()
     }
@@ -183,32 +239,53 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
     await savePayload(false)
   }
 
+  // 우측 기존 민원 필터링
+  const filteredExistingMinwon = allMinwonRecords.filter((r) => {
+    if (
+      minwonResultFilter !== '전체' &&
+      r.reviewResult !== minwonResultFilter
+    ) {
+      return false
+    }
+    const kw = minwonSearchKw.trim().toLowerCase()
+    if (!kw) return true
+    return (
+      r.location.toLowerCase().includes(kw) ||
+      r.content.toLowerCase().includes(kw) ||
+      r.complainantName.toLowerCase().includes(kw) ||
+      r.receptionNo.toLowerCase().includes(kw) ||
+      r.note.toLowerCase().includes(kw) ||
+      r.improvementResult.toLowerCase().includes(kw) ||
+      String(r.id).includes(kw)
+    )
+  })
+
   return (
     <div className="h-full p-3.5 w-full min-h-0 grid grid-cols-12 gap-3">
-      {/* 좌측 8컬럼: 민원접수대장 등록/수정 시트 (원클릭 칩 버튼 + 직접입력 결합) */}
+      {/* 좌측 8컬럼: 민원접수대장 등록/수정 시트 */}
       <div className="col-span-8 min-h-0 flex flex-col">
         <UtilityCard
           title={
-            initialRecord
-              ? `민원접수 내역 수정 (연번 #${initialRecord.id})`
+            editingTarget
+              ? `민원접수 내역 수정 (연번 #${editingTarget.id})`
               : `신규 민원접수 등록 (연번 #${id})`
           }
           badge={
             <span className="px-2 py-0.5 rounded-[5px] bg-[#eff6ff] text-[#2563eb] border border-[#bfdbfe] text-[11px] font-semibold">
-              {initialRecord ? '수정 모드' : '신규 작성'}
+              {editingTarget ? '수정 모드' : '신규 작성'}
             </span>
           }
           rightAction={
             <div className="flex items-center gap-1.5">
               <PillButton variant="pearl-capsule" size="sm" onClick={handleResetNew}>
                 <RotateCcw className="w-3.5 h-3.5 text-[#2563eb]" />
-                <span>입력 초기화</span>
+                <span>신규 작성(초기화)</span>
               </PillButton>
-              {initialRecord && canWrite && (
+              {editingTarget && canWrite && (
                 <PillButton
                   variant="pearl-capsule"
                   size="sm"
-                  onClick={() => void onDeleteRecord(initialRecord.id)}
+                  onClick={() => void onDeleteRecord(editingTarget.id)}
                 >
                   <Trash2 className="w-3.5 h-3.5 text-[#dc2626]" />
                   <span className="text-[#dc2626]">삭제</span>
@@ -229,18 +306,18 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
                   1. 민원 접수 및 민원인 기본 정보
                 </div>
 
-                {/* 연번 / 접수일자 / 접수번호 / 민원인 이름 / 연락처 */}
+                {/* 연번 / 접수일자 / 문서(접수)번호 (JSPD-년-월-일-순번 자동채번) / 이름 / 연락처 */}
                 <div className="grid grid-cols-12 gap-2.5">
-                  <div className="col-span-2">
-                    <label className="block text-[11.5px] font-semibold text-[#475569] mb-1">
+                  <div className="col-span-1">
+                    <label className="block text-[11.5px] font-semibold text-[#475569] mb-1 whitespace-nowrap">
                       연번
                     </label>
                     <input
                       type="number"
                       value={id}
                       onChange={(e) => setId(Number(e.target.value))}
-                      disabled={Boolean(initialRecord)}
-                      className="w-full h-[32px] px-2.5 rounded-[6px] border border-[#cbd5e1] bg-white text-[12.5px] font-bold text-[#0f172a] disabled:bg-[#e2e8f0]"
+                      disabled={Boolean(editingTarget)}
+                      className="w-full h-[32px] px-2 rounded-[6px] border border-[#cbd5e1] bg-white text-[12.5px] font-bold text-[#0f172a] disabled:bg-[#e2e8f0] text-center"
                     />
                   </div>
 
@@ -252,13 +329,13 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
                       <input
                         type="date"
                         value={receivedDate}
-                        onChange={(e) => setReceivedDate(e.target.value)}
+                        onChange={(e) => handleReceivedDateChange(e.target.value)}
                         required
                         className="w-full h-[32px] px-2 rounded-[6px] border border-[#cbd5e1] bg-white text-[12px] text-[#0f172a]"
                       />
                       <button
                         type="button"
-                        onClick={() => setReceivedDate(todayStr)}
+                        onClick={() => handleReceivedDateChange(todayStr)}
                         className="h-[32px] px-2 rounded-[6px] bg-[#eff6ff] hover:bg-[#dbeafe] text-[#1d4ed8] border border-[#bfdbfe] text-[11px] font-bold whitespace-nowrap cursor-pointer"
                       >
                         오늘
@@ -266,17 +343,29 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
                     </div>
                   </div>
 
-                  <div className="col-span-2">
+                  <div className="col-span-3">
                     <label className="block text-[11.5px] font-semibold text-[#475569] mb-1">
-                      접수번호
+                      문서(접수)번호
                     </label>
-                    <input
-                      type="text"
-                      value={receptionNo}
-                      onChange={(e) => setReceptionNo(e.target.value)}
-                      placeholder="접수번호"
-                      className="w-full h-[32px] px-2.5 rounded-[6px] border border-[#cbd5e1] bg-white text-[12.5px] text-[#0f172a]"
-                    />
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="text"
+                        value={receptionNo}
+                        onChange={(e) => setReceptionNo(e.target.value)}
+                        placeholder="JSPD-년-월-일-01"
+                        className="w-full h-[32px] px-2.5 rounded-[6px] border border-[#cbd5e1] bg-white text-[12px] font-bold text-[#2563eb]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setReceptionNo(generateJspdDocumentNo(receivedDate, allMinwonRecords))
+                        }
+                        title="관공서 문서번호(JSPD-년-월-일-순번) 자동 생성"
+                        className="h-[32px] px-2 rounded-[6px] bg-white hover:bg-[#eff6ff] border border-[#cbd5e1] text-[11px] font-semibold text-[#334155] whitespace-nowrap cursor-pointer"
+                      >
+                        자동채번
+                      </button>
+                    </div>
                   </div>
 
                   <div className="col-span-2">
@@ -343,47 +432,33 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
                   </div>
                 </div>
 
-                {/* 구역구분 원클릭 칩 + 연결 장비번호 */}
-                <div className="grid grid-cols-12 gap-2.5 items-center">
-                  <div className="col-span-8">
-                    <label className="block text-[11.5px] font-semibold text-[#475569] mb-1">
-                      구역구분 선택
-                    </label>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      {codes.구역구분.map((z) => (
-                        <button
-                          key={z}
-                          type="button"
-                          onClick={() => setZoneType(z)}
-                          className={`h-[29px] px-3 rounded-[6px] text-[11.5px] font-semibold border transition-all cursor-pointer ${
-                            zoneType === z
-                              ? 'bg-[#0f172a] text-white border-[#0f172a]'
-                              : 'bg-white hover:bg-[#f1f5f9] text-[#334155] border-[#cbd5e1]'
-                          }`}
-                        >
-                          {z}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="col-span-4">
-                    <label className="block text-[11.5px] font-semibold text-[#475569] mb-1">
-                      연결 장비번호 (우측 장비 클릭 시 자동 입력)
-                    </label>
-                    <input
-                      type="text"
-                      value={deviceId}
-                      onChange={(e) => setDeviceId(e.target.value)}
-                      placeholder="예: B7272"
-                      className="w-full h-[30px] px-2.5 rounded-[6px] border border-[#cbd5e1] bg-white text-[12px] font-bold text-[#2563eb]"
-                    />
+                {/* 구역구분 원클릭 칩 */}
+                <div>
+                  <label className="block text-[11.5px] font-semibold text-[#475569] mb-1">
+                    구역구분 선택
+                  </label>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {codes.구역구분.map((z) => (
+                      <button
+                        key={z}
+                        type="button"
+                        onClick={() => setZoneType(z)}
+                        className={`h-[29px] px-3 rounded-[6px] text-[11.5px] font-semibold border transition-all cursor-pointer ${
+                          zoneType === z
+                            ? 'bg-[#0f172a] text-white border-[#0f172a]'
+                            : 'bg-white hover:bg-[#f1f5f9] text-[#334155] border-[#cbd5e1]'
+                        }`}
+                      >
+                        {z}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
-                {/* 위치 */}
+                {/* 민원 위치 */}
                 <div>
                   <label className="block text-[11.5px] font-semibold text-[#475569] mb-1">
-                    민원 위치 (직접 입력하거나 우측 단속장비 목록에서 클릭하면 자동 입력됩니다)
+                    민원 위치 (주소 / 교차로 / 학교명 — 우측 기존 민원 목록에서 선택하면 값을 가져올 수 있습니다)
                   </label>
                   <input
                     type="text"
@@ -394,7 +469,7 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
                   />
                 </div>
 
-                {/* 민원내용 + 다음 행에 자주 쓰는 문구 칩 배치 (빠른 문구 텍스트 없이) */}
+                {/* 민원내용 + 다음 행에 자주 쓰는 문구 칩 배치 */}
                 <div className="space-y-1.5">
                   <label className="block text-[11.5px] font-semibold text-[#475569] whitespace-nowrap">
                     민원내용
@@ -512,7 +587,7 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
 
               {canWrite && (
                 <div className="flex items-center gap-2">
-                  {!initialRecord && (
+                  {!editingTarget && (
                     <PillButton
                       type="button"
                       variant="secondary-pill"
@@ -524,7 +599,7 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
                   )}
                   <PillButton type="submit" variant="primary">
                     <Save className="w-4 h-4" />
-                    <span>{initialRecord ? '민원 수정사항 저장' : '민원접수대장에 등록'}</span>
+                    <span>{editingTarget ? '민원 수정사항 저장' : '민원접수대장에 등록'}</span>
                   </PillButton>
                 </div>
               )}
@@ -533,11 +608,11 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
         </UtilityCard>
       </div>
 
-      {/* 우측 4컬럼: 무인교통단속장비 마스터(487대) 검색 및 원클릭 위치 연동 */}
+      {/* 우측 4컬럼: 기존 민원내용·위치·민원인 검색 및 값 가져오기 사이드패널 */}
       <div className="col-span-4 min-h-0 flex flex-col">
         <UtilityCard
-          title="단속장비 위치 빠른 선택 (487대)"
-          badge={<Radio className="w-3.5 h-3.5 text-[#2563eb]" />}
+          title={`기존 민원내용 검색 및 값 가져오기 (${filteredExistingMinwon.length}건)`}
+          badge={<ClipboardList className="w-3.5 h-3.5 text-[#2563eb]" />}
           className="flex-1 min-h-0"
           bodyClassName="gap-2"
         >
@@ -545,40 +620,39 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
             <Search className="w-3.5 h-3.5 text-[#64748b] absolute left-2.5 top-2.5" />
             <input
               type="text"
-              value={deviceSearchKw}
-              onChange={(e) => setDeviceSearchKw(e.target.value)}
-              placeholder="장비번호(B7272), 교차로명, 동/읍/면 주소 검색..."
+              value={minwonSearchKw}
+              onChange={(e) => setMinwonSearchKw(e.target.value)}
+              placeholder="기존 민원 위치(동/리), 민원내용, 민원인, 비고 검색..."
               className="w-full h-[32px] pl-8 pr-2.5 rounded-[7px] border border-[#cbd5e1] bg-[#f8fafc] focus:bg-white text-[12px] focus:outline-2 focus:outline-[#2563eb]"
             />
           </div>
 
           <div className="flex items-center gap-1 flex-wrap shrink-0">
-            {['전체', '일반구역', '어린이보호구역', '노인보호구역'].map((z) => (
+            {['전체', '대기중', '적합', '부적합', '불합리', '검토완료'].map((resLabel) => (
               <button
-                key={z}
+                key={resLabel}
                 type="button"
-                onClick={() => setDeviceZoneFilter(z)}
+                onClick={() => setMinwonResultFilter(resLabel)}
                 className={`px-2 py-1 rounded-[5px] text-[11px] font-semibold border cursor-pointer ${
-                  deviceZoneFilter === z
+                  minwonResultFilter === resLabel
                     ? 'bg-[#2563eb] text-white border-[#2563eb]'
                     : 'bg-[#f8fafc] text-[#475569] border-[#cbd5e1]'
                 }`}
               >
-                {z}
+                {resLabel}
               </button>
             ))}
           </div>
 
           <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-1">
-            {deviceList.map((d) => {
-              const isLinked = deviceId === d.deviceId
+            {filteredExistingMinwon.map((rec) => {
+              const isSelected = selectedRefId === rec.id
               return (
-                <button
-                  key={d.deviceId}
-                  type="button"
-                  onClick={() => handleSelectDevice(d)}
+                <div
+                  key={rec.id}
+                  onClick={() => handleCopyFromExisting(rec)}
                   className={`w-full text-left rounded-[8px] border p-2.5 transition-all cursor-pointer ${
-                    isLinked
+                    isSelected
                       ? 'bg-[#eff6ff] border-[#2563eb]'
                       : 'bg-[#f8fafc] hover:bg-[#f1f5f9] border-[#cbd5e1]'
                   }`}
@@ -586,28 +660,70 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
                   <div className="flex items-center justify-between gap-1">
                     <div className="flex items-center gap-1.5 min-w-0">
                       <span className="px-1.5 py-0.5 rounded-[4px] bg-[#0f172a] text-white text-[10.5px] font-bold">
-                        {d.deviceId}
+                        #{rec.id}
                       </span>
-                      <span className="text-[12px] font-bold text-[#0f172a] truncate">
-                        {d.deviceName}
+                      <span className="text-[11px] font-semibold text-[#64748b]">
+                        {rec.receivedDate}
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded-[4px] bg-white border border-[#cbd5e1] text-[10.5px] font-semibold text-[#334155]">
+                        {rec.receptionType}
                       </span>
                     </div>
-                    {isLinked && <CheckCircle2 className="w-3.5 h-3.5 text-[#2563eb] shrink-0" />}
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className="px-1.5 py-0.5 rounded-[4px] bg-[#fef3c7] text-[#b45309] text-[10.5px] font-bold">
+                        {rec.reviewResult || '대기중'}
+                      </span>
+                      {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-[#2563eb]" />}
+                    </div>
                   </div>
-                  <div className="text-[11px] text-[#475569] mt-1 flex items-center gap-1 truncate">
-                    <MapPin className="w-3 h-3 text-[#2563eb] shrink-0" />
-                    <span className="truncate">{d.location}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 mt-1.5 text-[10.5px]">
-                    <span className="px-1.5 py-0.5 rounded-[4px] bg-white border border-[#cbd5e1] text-[#334155] font-medium">
-                      {d.zoneType}
+
+                  <div className="text-[12px] font-bold text-[#0f172a] mt-1 flex items-center gap-1 truncate">
+                    <MapPin className="w-3.5 h-3.5 text-[#2563eb] shrink-0" />
+                    <span className="truncate" title={rec.location}>
+                      {rec.location}
                     </span>
-                    <span className="px-1.5 py-0.5 rounded-[4px] bg-white border border-[#cbd5e1] text-[#334155]">
-                      {d.category} · {d.enforcementType} ({d.speedLimit}km)
-                    </span>
-                    <span className="text-[#64748b] ml-auto">{d.installYear}년</span>
                   </div>
-                </button>
+
+                  <div className="text-[11.5px] text-[#334155] mt-0.5 truncate" title={rec.content}>
+                    {rec.content}
+                  </div>
+
+                  {rec.note && (
+                    <div className="text-[10.5px] text-[#64748b] mt-0.5 truncate" title={rec.note}>
+                      비고: {rec.note}
+                    </div>
+                  )}
+
+                  <div
+                    className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-[#e2e8f0] text-[10.5px]"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <span className="inline-flex items-center gap-1 text-[#475569] font-medium">
+                      <User className="w-3 h-3 text-[#64748b]" />
+                      {rec.complainantName || '-'} · {rec.zoneType}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleCopyFromExisting(rec)}
+                        className="px-2 py-0.5 rounded-[4px] bg-white hover:bg-[#eff6ff] border border-[#cbd5e1] text-[#2563eb] font-bold inline-flex items-center gap-0.5 cursor-pointer"
+                        title="위치·구역구분·민원내용을 신규 작성 폼으로 가져오기"
+                      >
+                        <Copy className="w-2.5 h-2.5" />
+                        <span>값 가져오기</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSwitchToEdit(rec)}
+                        className="px-2 py-0.5 rounded-[4px] bg-white hover:bg-[#f1f5f9] border border-[#cbd5e1] text-[#334155] font-bold inline-flex items-center gap-0.5 cursor-pointer"
+                        title="이 민원 내역 자체를 수정 모드로 열기"
+                      >
+                        <Edit3 className="w-2.5 h-2.5" />
+                        <span>바로 수정</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
               )
             })}
           </div>

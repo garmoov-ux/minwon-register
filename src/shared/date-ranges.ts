@@ -9,6 +9,39 @@ export function formatIsoDate(d: Date): string {
 }
 
 /**
+ * 관공서 표준 문서(접수)번호 자동 생성: JSPD-YYYY-MM-DD-01, 02, 03...
+ */
+export function generateJspdDocumentNo(
+  receivedDate: string,
+  existingRecords: Array<{ receivedDate: string; receptionNo: string }>
+): string {
+  const cleanDate =
+    /^\d{4}-\d{2}-\d{2}$/.test((receivedDate || '').trim())
+      ? receivedDate.trim()
+      : formatIsoDate(new Date())
+
+  const prefix = `JSPD-${cleanDate}-`
+  let maxSeq = 0
+  let sameDateCount = 0
+
+  for (const r of existingRecords) {
+    const no = (r.receptionNo || '').trim()
+    if (no.startsWith(prefix)) {
+      const tail = Number(no.slice(prefix.length))
+      if (Number.isFinite(tail) && tail > maxSeq) {
+        maxSeq = tail
+      }
+    }
+    if (r.receivedDate === cleanDate) {
+      sameDateCount += 1
+    }
+  }
+
+  const nextSeq = Math.max(maxSeq, sameDateCount) + 1
+  return `${prefix}${pad2(nextSeq)}`
+}
+
+/**
  * 기존 VBA frmSearch.GetStartAndEndDate(period) 완벽 호환 날짜 계산
  */
 export function computeQuickDateRange(
