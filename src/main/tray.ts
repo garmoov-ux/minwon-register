@@ -26,9 +26,14 @@ const GLYPH_POLICE_SHIELD = [
 
 export function createMinwonAppIcon(size = 64): Electron.NativeImage {
   const { baseDir } = resolveAppPaths()
+  const resPath = (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath || baseDir
   const candidates = [
     path.resolve(baseDir, 'resources', 'icon.ico'),
     path.resolve(baseDir, 'resources', 'icon.png'),
+    path.resolve(resPath, 'icon.ico'),
+    path.resolve(resPath, 'icon.png'),
+    path.resolve(resPath, 'resources', 'icon.ico'),
+    path.resolve(resPath, 'resources', 'icon.png'),
     path.resolve(process.cwd(), 'resources', 'icon.ico'),
     path.resolve(process.cwd(), 'resources', 'icon.png')
   ]

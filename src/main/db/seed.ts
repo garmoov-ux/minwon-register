@@ -569,10 +569,13 @@ export function seedInitialDatabase(
   }
 
   // 3. 단속장비 마스터(device.csv, 487대) 자동 시드
+  const resPath = (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath || process.cwd()
   const deviceCount = (db.prepare('SELECT COUNT(*) as cnt FROM devices').get() as { cnt: number }).cnt
   if (deviceCount === 0) {
     const candidates = [
       options?.customDeviceCsvPath,
+      path.resolve(resPath, 'device.csv'),
+      path.resolve(resPath, 'resources', 'device.csv'),
       path.resolve(process.cwd(), 'resources', 'device.csv'),
       path.resolve(process.cwd(), '_ref_VBA', 'device.csv')
     ].filter((p): p is string => Boolean(p))
@@ -593,6 +596,8 @@ export function seedInitialDatabase(
     if (minwonCount === 0) {
       const candidates = [
         options?.customMinwonCsvPath,
+        path.resolve(resPath, 'datadb.csv'),
+        path.resolve(resPath, 'resources', 'datadb.csv'),
         path.resolve(process.cwd(), 'resources', 'datadb.csv'),
         path.resolve(process.cwd(), '_ref_VBA', 'datadb.csv')
       ].filter((p): p is string => Boolean(p))

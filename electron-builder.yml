@@ -22,6 +22,14 @@ asarUnpack:
 extraFiles:
   - from: "config.json"
     to: "config.json"
+  - from: "resources/icon.ico"
+    to: "resources/icon.ico"
+  - from: "resources/icon.png"
+    to: "resources/icon.png"
+  - from: "resources/device.csv"
+    to: "resources/device.csv"
+  - from: "resources/datadb.csv"
+    to: "resources/datadb.csv"
 win:
   icon: resources/icon.ico
   signAndEditExecutable: false

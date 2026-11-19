@@ -41,8 +41,20 @@ export function resolveAppPaths(): ResolvedAppPaths {
     process.env.MINWON_EXPORT_DIR || './Export'
   )
 
+  const exeDir = (() => {
+    try {
+      return app && app.isPackaged ? path.dirname(app.getPath('exe')) : baseDir
+    } catch {
+      return baseDir
+    }
+  })()
+  const resPath = (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath || exeDir
+
   const candidateDeviceCsvPaths = [
     path.resolve(baseDir, 'resources', 'device.csv'),
+    path.resolve(exeDir, 'resources', 'device.csv'),
+    path.resolve(resPath, 'device.csv'),
+    path.resolve(resPath, 'resources', 'device.csv'),
     path.resolve(baseDir, '_ref_VBA', 'device.csv'),
     path.resolve(process.cwd(), 'resources', 'device.csv'),
     path.resolve(process.cwd(), '_ref_VBA', 'device.csv')
@@ -52,6 +64,9 @@ export function resolveAppPaths(): ResolvedAppPaths {
 
   const candidateMinwonCsvPaths = [
     path.resolve(baseDir, 'resources', 'datadb.csv'),
+    path.resolve(exeDir, 'resources', 'datadb.csv'),
+    path.resolve(resPath, 'datadb.csv'),
+    path.resolve(resPath, 'resources', 'datadb.csv'),
     path.resolve(baseDir, '_ref_VBA', 'datadb.csv'),
     path.resolve(process.cwd(), 'resources', 'datadb.csv'),
     path.resolve(process.cwd(), '_ref_VBA', 'datadb.csv')

@@ -6,12 +6,12 @@ import { UtilityCard } from '../../components/ui/UtilityCard'
 import { PillButton } from '../../components/ui/PillButton'
 
 const AUTO_LOGOUT_PRESETS = [
-  { seconds: 60, label: '60초 (1분)' },
-  { seconds: 180, label: '180초 (3분)' },
-  { seconds: 300, label: '300초 (5분)' },
-  { seconds: 600, label: '600초 (10분·권장)' },
-  { seconds: 900, label: '900초 (15분)' },
-  { seconds: 1800, label: '1800초 (30분)' }
+  { seconds: 60, label: '1분(60초)' },
+  { seconds: 180, label: '3분(180초)' },
+  { seconds: 300, label: '5분(300초)' },
+  { seconds: 600, label: '10분(권장)' },
+  { seconds: 900, label: '15분' },
+  { seconds: 1800, label: '30분' }
 ]
 
 interface SettingsViewProps {
@@ -270,36 +270,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
 
             {draftConfig.system.autoLogoutEnabled && (
-              <div className="pt-2 border-t border-[#e2e8f0] space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11.5px] font-semibold text-[#334155]">
-                    실무 권장 대기 시간 빠른 선택
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] text-[#64748b] font-medium">직접 입력:</span>
-                    <input
-                      type="number"
-                      min={10}
-                      max={86400}
-                      disabled={!canControlServer}
-                      value={draftConfig.system.autoLogoutSeconds || 600}
-                      onChange={(e) =>
-                        setDraftConfig({
-                          ...draftConfig,
-                          system: {
-                            ...draftConfig.system,
-                            autoLogoutSeconds: Math.max(10, Number(e.target.value) || 60)
-                          }
-                        })
-                      }
-                      onBlur={() => applyAndSaveConfig(draftConfig)}
-                      className="w-[78px] h-[27px] px-2 rounded-[5px] border border-[#cbd5e1] bg-white text-center font-extrabold text-[12px] text-[#2563eb]"
-                    />
-                    <span className="text-[11.5px] font-bold text-[#334155]">초</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1 flex-wrap">
+              <div className="pt-2 border-t border-[#e2e8f0] flex items-center justify-between gap-1.5 flex-nowrap">
+                <div className="flex items-center gap-1 flex-nowrap">
                   {AUTO_LOGOUT_PRESETS.map((preset) => {
                     const selected = draftConfig.system.autoLogoutSeconds === preset.seconds
                     return (
@@ -316,7 +288,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             }
                           })
                         }
-                        className={`h-[26px] px-2.5 rounded-[5px] text-[11px] font-bold border transition-colors cursor-pointer ${
+                        className={`h-[26px] px-2 rounded-[5px] text-[11px] font-bold border transition-colors whitespace-nowrap cursor-pointer ${
                           selected
                             ? 'bg-[#2563eb] text-white border-[#2563eb]'
                             : 'bg-white hover:bg-[#eff6ff] text-[#334155] border-[#cbd5e1]'
@@ -326,6 +298,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       </button>
                     )
                   })}
+                </div>
+
+                <div className="flex items-center gap-1 shrink-0 whitespace-nowrap">
+                  <span className="text-[11px] text-[#64748b] font-semibold">직접 입력:</span>
+                  <input
+                    type="number"
+                    min={10}
+                    max={86400}
+                    disabled={!canControlServer}
+                    value={draftConfig.system.autoLogoutSeconds || 600}
+                    onChange={(e) =>
+                      setDraftConfig({
+                        ...draftConfig,
+                        system: {
+                          ...draftConfig.system,
+                          autoLogoutSeconds: Math.max(10, Number(e.target.value) || 60)
+                        }
+                      })
+                    }
+                    onBlur={() => applyAndSaveConfig(draftConfig)}
+                    className="w-[64px] h-[26px] px-1.5 rounded-[5px] border border-[#cbd5e1] bg-white text-center font-extrabold text-[11.5px] text-[#2563eb]"
+                  />
+                  <span className="text-[11px] font-bold text-[#334155]">초</span>
                 </div>
               </div>
             )}
