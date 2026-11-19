@@ -4,7 +4,8 @@
     "port": 8090,
     "host": "0.0.0.0",
     "autoStartOnBoot": false,
-    "allowRemoteWrite": true
+    "allowRemoteWrite": true,
+    "designatedAdminUsername": "manager"
   },
   "system": {
     "minimizeToTray": true,

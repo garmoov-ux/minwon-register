@@ -13,6 +13,7 @@ export interface ResolvedAppPaths {
   logDir: string
   exportDir: string
   seedDeviceCsvPath: string
+  seedMinwonCsvPath: string
 }
 
 export function resolveAppPaths(): ResolvedAppPaths {
@@ -40,14 +41,23 @@ export function resolveAppPaths(): ResolvedAppPaths {
     process.env.MINWON_EXPORT_DIR || './Export'
   )
 
-  const candidateCsvPaths = [
+  const candidateDeviceCsvPaths = [
     path.resolve(baseDir, 'resources', 'device.csv'),
     path.resolve(baseDir, '_ref_VBA', 'device.csv'),
     path.resolve(process.cwd(), 'resources', 'device.csv'),
     path.resolve(process.cwd(), '_ref_VBA', 'device.csv')
   ]
   const seedDeviceCsvPath =
-    candidateCsvPaths.find((p) => fs.existsSync(p)) || candidateCsvPaths[0]
+    candidateDeviceCsvPaths.find((p) => fs.existsSync(p)) || candidateDeviceCsvPaths[0]
+
+  const candidateMinwonCsvPaths = [
+    path.resolve(baseDir, 'resources', 'datadb.csv'),
+    path.resolve(baseDir, '_ref_VBA', 'datadb.csv'),
+    path.resolve(process.cwd(), 'resources', 'datadb.csv'),
+    path.resolve(process.cwd(), '_ref_VBA', 'datadb.csv')
+  ]
+  const seedMinwonCsvPath =
+    candidateMinwonCsvPaths.find((p) => fs.existsSync(p)) || candidateMinwonCsvPaths[0]
 
   fs.mkdirSync(path.dirname(dbPath), { recursive: true })
   fs.mkdirSync(logDir, { recursive: true })
@@ -59,7 +69,8 @@ export function resolveAppPaths(): ResolvedAppPaths {
     dbPath,
     logDir,
     exportDir,
-    seedDeviceCsvPath
+    seedDeviceCsvPath,
+    seedMinwonCsvPath
   }
 }
 
@@ -96,32 +107,32 @@ export function collectStorageInfo(): StorageFolderItem[] {
   return [
     {
       key: 'DATA',
-      label: '내장 데이터베이스 폴더',
-      description: '민원접수대장, 단속장비 마스터, 계정 및 감사 이력 저장소',
+      label: '내장 데이터베이스 보관 폴더',
+      description: '민원접수대장, 단속장비 마스터, 사용자 계정 및 작업 이력 저장소',
       resolvedPath: dataDir,
       fileCount: dataStats.fileCount,
       totalBytes: dataStats.totalBytes
     },
     {
       key: 'EXPORT',
-      label: '엑셀 보고서 내보내기 폴더 (Export)',
-      description: '민원접수대장 전체/조회 결과 및 단속장비 운영현황 통계 엑셀(.xlsx) 저장 폴더',
+      label: '엑셀 보고서 내보내기 폴더',
+      description: '민원접수대장 전체/조회 결과 및 단속장비 운영현황 통계 엑셀 저장 폴더',
       resolvedPath: paths.exportDir,
       fileCount: exportStats.fileCount,
       totalBytes: exportStats.totalBytes
     },
     {
       key: 'LOGS',
-      label: '운영 및 서버 접속 로그 폴더',
-      description: '일자별 시스템 및 다중 접속 서버 운용 로그 파일',
+      label: '운영 및 서버 접속 기록 폴더',
+      description: '일자별 시스템 및 다중 접속 서버 운용 기록 파일',
       resolvedPath: paths.logDir,
       fileCount: logStats.fileCount,
       totalBytes: logStats.totalBytes
     },
     {
       key: 'CONFIG',
-      label: '환경설정 파일 (config.json)',
-      description: '서버 포트, 자동 시작, 보관 주기 및 원격 접속 설정 파일',
+      label: '시스템 환경설정 파일',
+      description: '서버 포트, 지정 관리자 계정, 자동 시작 및 원격 접속 설정 파일',
       resolvedPath: paths.configPath,
       fileCount: configStats.fileCount,
       totalBytes: configStats.totalBytes

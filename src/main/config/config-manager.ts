@@ -8,7 +8,8 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
     port: Number(process.env.MINWON_SERVER_PORT || 8090),
     host: '0.0.0.0',
     autoStartOnBoot: false,
-    allowRemoteWrite: true
+    allowRemoteWrite: true,
+    designatedAdminUsername: 'manager'
   },
   system: {
     minimizeToTray: true,
@@ -28,12 +29,21 @@ export function normalizeConfig(partial?: Partial<AppConfig>): AppConfig {
     server: {
       ...DEFAULT_APP_CONFIG.server,
       ...(partial?.server || {}),
-      port: Math.max(1024, Math.min(65535, Number(partial?.server?.port || DEFAULT_APP_CONFIG.server.port)))
+      port: Math.max(
+        1024,
+        Math.min(65535, Number(partial?.server?.port || DEFAULT_APP_CONFIG.server.port))
+      ),
+      designatedAdminUsername:
+        partial?.server?.designatedAdminUsername ||
+        DEFAULT_APP_CONFIG.server.designatedAdminUsername
     },
     system: {
       ...DEFAULT_APP_CONFIG.system,
       ...(partial?.system || {}),
-      retentionDays: Math.max(30, Number(partial?.system?.retentionDays || DEFAULT_APP_CONFIG.system.retentionDays))
+      retentionDays: Math.max(
+        30,
+        Number(partial?.system?.retentionDays || DEFAULT_APP_CONFIG.system.retentionDays)
+      )
     },
     remoteClient: {
       ...DEFAULT_APP_CONFIG.remoteClient,

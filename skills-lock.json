@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "skills": {
+    "auth-implementation-patterns": {
+      "source": "wshobson/agents",
+      "commit": "42203085cfc5736204bf0f6d436dff7e1da0bf3f",
+      "sourceType": "github",
+      "skillPath": "plugins/developer-essentials/skills/auth-implementation-patterns/SKILL.md",
+      "computedHash": "c53f2130133d8e4f36ee586442d4aefd92fb356a205ee1e48c4a86f7911cbe56"
+    },
+    "excel-automation": {
+      "source": "claude-office-skills/skills",
+      "commit": "9c4c7d5cd2813a8936bf2c9fdb174ea883b85a11",
+      "sourceType": "github",
+      "skillPath": "excel-automation/SKILL.md",
+      "computedHash": "b47d5f28f9d5a02b9471cfc1c8870effc54f00cded594f9ead8fd5f83d9fb774"
+    },
+    "nodejs-backend-patterns": {
+      "source": "wshobson/agents",
+      "commit": "42203085cfc5736204bf0f6d436dff7e1da0bf3f",
+      "sourceType": "github",
+      "skillPath": "plugins/javascript-typescript/skills/nodejs-backend-patterns/SKILL.md",
+      "computedHash": "e478380e9c9d245d0c4caf6574d00934aca71fc62101e571262cdd26f958f4f1"
+    }
+  }
+}

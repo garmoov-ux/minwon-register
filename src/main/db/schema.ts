@@ -7,8 +7,11 @@ export function initializeDatabaseSchema(db: Database.Database): void {
       username TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL,
       display_name TEXT NOT NULL,
-      department TEXT NOT NULL DEFAULT '교통단속장비운영팀',
-      role TEXT NOT NULL DEFAULT 'OPERATOR',
+      job_title TEXT NOT NULL DEFAULT '담당관',
+      email TEXT NOT NULL DEFAULT '',
+      contact TEXT NOT NULL DEFAULT '',
+      role TEXT NOT NULL DEFAULT 'USER',
+      can_toggle_server INTEGER NOT NULL DEFAULT 0,
       active INTEGER NOT NULL DEFAULT 1,
       last_login_at TEXT,
       created_at TEXT NOT NULL
@@ -33,7 +36,7 @@ export function initializeDatabaseSchema(db: Database.Database): void {
       zone_type TEXT NOT NULL DEFAULT '일반구역',
       content TEXT NOT NULL DEFAULT '',
       review_date TEXT NOT NULL DEFAULT '',
-      review_result TEXT NOT NULL DEFAULT '검토중',
+      review_result TEXT NOT NULL DEFAULT '대기중',
       improvement_result TEXT NOT NULL DEFAULT '',
       note TEXT NOT NULL DEFAULT '',
       device_id TEXT NOT NULL DEFAULT '',
@@ -78,4 +81,20 @@ export function initializeDatabaseSchema(db: Database.Database): void {
 
     CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_logs(timestamp DESC);
   `)
+
+  // 기존 DB 파일 마이그레이션 호환
+  const cols = db.prepare('PRAGMA table_info(users)').all() as Array<{ name: string }>
+  const colNames = new Set(cols.map((c) => c.name))
+  if (!colNames.has('job_title')) {
+    db.exec("ALTER TABLE users ADD COLUMN job_title TEXT NOT NULL DEFAULT '담당관'")
+  }
+  if (!colNames.has('email')) {
+    db.exec("ALTER TABLE users ADD COLUMN email TEXT NOT NULL DEFAULT ''")
+  }
+  if (!colNames.has('contact')) {
+    db.exec("ALTER TABLE users ADD COLUMN contact TEXT NOT NULL DEFAULT ''")
+  }
+  if (!colNames.has('can_toggle_server')) {
+    db.exec('ALTER TABLE users ADD COLUMN can_toggle_server INTEGER NOT NULL DEFAULT 0')
+  }
 }

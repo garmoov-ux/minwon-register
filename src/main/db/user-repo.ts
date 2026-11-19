@@ -7,20 +7,33 @@ interface UserRow {
   username: string
   password_hash: string
   display_name: string
-  department: string
+  job_title: string
+  email: string
+  contact: string
   role: UserRole
+  can_toggle_server: number
   active: number
   last_login_at: string | null
   created_at: string
 }
 
+function normalizeRole(rawRole: string): UserRole {
+  if (rawRole === 'SUPER_ADMIN') return 'SUPER_ADMIN'
+  if (rawRole === 'ADMIN') return 'ADMIN'
+  return 'USER'
+}
+
 function mapUserRow(row: UserRow): UserAccount {
+  const role = normalizeRole(row.role)
   return {
     id: row.id,
     username: row.username,
     displayName: row.display_name,
-    department: row.department,
-    role: row.role,
+    jobTitle: row.job_title || '담당관',
+    email: row.email || '',
+    contact: row.contact || '',
+    role,
+    canToggleServer: role === 'SUPER_ADMIN' || row.can_toggle_server === 1,
     active: row.active === 1,
     lastLoginAt: row.last_login_at,
     createdAt: row.created_at
@@ -60,50 +73,110 @@ export class UserRepository {
     return mapUserRow({ ...row, last_login_at: nowIso })
   }
 
+  /**
+   * admin(최고관리자) 외에 서버 기능을 켤 수 있는 지정 관리자 1명을 단독으로 설정한다.
+   */
+  designateServerAdmin(targetUsername: string): UserAccount | null {
+    const cleanTarget = targetUsername.trim()
+    const target = this.getUserByUsername(cleanTarget)
+    if (!target) return null
+
+    const tx = this.db.transaction(() => {
+      // admin(SUPER_ADMIN)을 제외한 모든 사용자의 서버 제어 권한을 먼저 해제하고 일반 ADMIN은 1명만 서버 제어 권한 부여
+      this.db
+        .prepare("UPDATE users SET can_toggle_server = 0 WHERE role != 'SUPER_ADMIN'")
+        .run()
+
+      // 기존 지정 관리자가 ADMIN이었다면 필요 시 role은 유지하되 target을 ADMIN + can_toggle_server = 1로 승격
+      this.db
+        .prepare(
+          "UPDATE users SET role = CASE WHEN role = 'SUPER_ADMIN' THEN 'SUPER_ADMIN' ELSE 'ADMIN' END, can_toggle_server = 1 WHERE username = ?"
+        )
+        .run(cleanTarget)
+    })
+    tx()
+    return this.getUserByUsername(cleanTarget)
+  }
+
   upsertUser(payload: CreateUserPayload): UserAccount {
     const cleanUsername = payload.username.trim()
     const existing = this.db
       .prepare('SELECT * FROM users WHERE username = ?')
       .get(cleanUsername) as UserRow | undefined
 
-    if (!existing) {
-      const nowIso = new Date().toISOString()
-      const pwHash = hashPassword(payload.password || '1234')
-      this.db
-        .prepare(`
-          INSERT INTO users (username, password_hash, display_name, department, role, active, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-        `)
-        .run(
-          cleanUsername,
-          pwHash,
-          payload.displayName.trim() || cleanUsername,
-          payload.department.trim() || '교통단속장비운영팀',
-          payload.role,
-          payload.active === false ? 0 : 1,
-          nowIso
-        )
-    } else {
-      const pwHash = payload.password && payload.password.trim()
-        ? hashPassword(payload.password.trim())
-        : existing.password_hash
+    const role: UserRole =
+      cleanUsername === 'admin' ? 'SUPER_ADMIN' : normalizeRole(payload.role)
 
-      this.db
-        .prepare(`
-          UPDATE users
-          SET password_hash = ?, display_name = ?, department = ?, role = ?, active = ?
-          WHERE username = ?
-        `)
-        .run(
-          pwHash,
-          payload.displayName.trim() || existing.display_name,
-          payload.department.trim() || existing.department,
-          payload.role,
-          payload.active === false ? 0 : 1,
-          cleanUsername
-        )
-    }
+    // 만약 이 계정을 서버 지정 관리자로 체크하거나 role이 ADMIN으로 지정되면 admin 외 1명 규칙 적용
+    const wantServerAdmin =
+      role === 'SUPER_ADMIN' || payload.canToggleServer === true || role === 'ADMIN'
 
+    const tx = this.db.transaction(() => {
+      if (wantServerAdmin && cleanUsername !== 'admin') {
+        // admin 외에 서버를 켤 수 있는 관리자는 1명만 유지
+        this.db
+          .prepare("UPDATE users SET can_toggle_server = 0 WHERE username != 'admin'")
+          .run()
+      }
+
+      const canToggleInt = wantServerAdmin ? 1 : 0
+
+      if (!existing) {
+        const nowIso = new Date().toISOString()
+        const pwHash = hashPassword(payload.password || '1234')
+        this.db
+          .prepare(`
+            INSERT INTO users (
+              username, password_hash, display_name, job_title, email, contact,
+              role, can_toggle_server, active, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `)
+          .run(
+            cleanUsername,
+            pwHash,
+            payload.displayName.trim() || cleanUsername,
+            (payload.jobTitle || '주무관').trim(),
+            (payload.email || '').trim(),
+            (payload.contact || '').trim(),
+            role,
+            canToggleInt,
+            payload.active === false ? 0 : 1,
+            nowIso
+          )
+      } else {
+        const pwHash =
+          payload.password && payload.password.trim()
+            ? hashPassword(payload.password.trim())
+            : existing.password_hash
+
+        this.db
+          .prepare(`
+            UPDATE users
+            SET password_hash = ?,
+                display_name = ?,
+                job_title = ?,
+                email = ?,
+                contact = ?,
+                role = ?,
+                can_toggle_server = ?,
+                active = ?
+            WHERE username = ?
+          `)
+          .run(
+            pwHash,
+            payload.displayName.trim() || existing.display_name,
+            (payload.jobTitle || existing.job_title || '주무관').trim(),
+            (payload.email ?? existing.email ?? '').trim(),
+            (payload.contact ?? existing.contact ?? '').trim(),
+            role,
+            canToggleInt,
+            payload.active === false ? 0 : 1,
+            cleanUsername
+          )
+      }
+    })
+
+    tx()
     return this.getUserByUsername(cleanUsername)!
   }
 
@@ -143,7 +216,7 @@ export class UserRepository {
       `)
       .run(
         new Date().toISOString(),
-        params.username || 'system',
+        params.username || '시스템',
         params.action,
         params.targetType,
         params.targetId || '',

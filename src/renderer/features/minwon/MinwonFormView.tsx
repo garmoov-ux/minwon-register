@@ -207,7 +207,7 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
                 <div className="grid grid-cols-12 gap-2.5">
                   <div className="col-span-2">
                     <label className="block text-[11.5px] font-semibold text-[#475569] mb-1">
-                      연번 (ID)
+                      연번
                     </label>
                     <input
                       type="number"

@@ -8,6 +8,7 @@ import {
   Radio,
   Server,
   Settings,
+  Shield,
   UserCheck
 } from 'lucide-react'
 import { AuthSession, RestServerStatus } from '@shared/types/domain'
@@ -26,6 +27,7 @@ interface GlobalNavProps {
   onSelectTab: (tab: NavTabId) => void
   serverStatus: RestServerStatus
   session: AuthSession | null
+  canControlServer: boolean
   onToggleServer: (next: boolean) => void
   onOpenAccountModal: () => void
 }
@@ -34,7 +36,7 @@ const TABS: Array<{ id: NavTabId; label: string; title: string; icon: React.Reac
   {
     id: 'ledger',
     label: '대장',
-    title: '민원접수대장 통합 조회 · 기간별 필터링 · 엑셀 내보내기',
+    title: '민원접수대장 통합 조회 · 기간별 검색 · 엑셀 내보내기',
     icon: <ClipboardList className="w-[16px] h-[16px]" />
   },
   {
@@ -58,13 +60,13 @@ const TABS: Array<{ id: NavTabId; label: string; title: string; icon: React.Reac
   {
     id: 'server',
     label: '서버',
-    title: '다중 사용자 REST API 서버 제어 · 접속 주소 · 계정 권한 관리',
+    title: '다중 접속 서버 제어 · 접속 주소 · 사용자 계정 권한 관리',
     icon: <Server className="w-[16px] h-[16px]" />
   },
   {
     id: 'settings',
     label: '설정',
-    title: '접수구분·구역구분·검토결과 코드 항목 편집 및 환경설정',
+    title: '접수구분·구역구분·검토결과 항목 편집 및 시스템 환경설정',
     icon: <Settings className="w-[16px] h-[16px]" />
   },
   {
@@ -80,6 +82,7 @@ export const GlobalNav: React.FC<GlobalNavProps> = ({
   onSelectTab,
   serverStatus,
   session,
+  canControlServer,
   onToggleServer,
   onOpenAccountModal
 }) => {
@@ -91,11 +94,12 @@ export const GlobalNav: React.FC<GlobalNavProps> = ({
         <button
           type="button"
           onClick={() => onSelectTab('about')}
-          title="민원접수대장 프로그램 정보"
-          className="relative w-[50px] h-[34px] rounded-[8px] bg-[#1e293b] hover:bg-[#334155] border border-[#334155] flex items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer"
+          title="자치경찰 무인교통단속장비 민원접수대장 정보"
+          className="relative w-[50px] h-[36px] rounded-[8px] bg-[#0f172a] hover:bg-[#1e293b] border border-[#f59e0b]/70 flex flex-col items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer"
         >
-          <span className="text-[11px] font-extrabold tracking-tight text-white leading-none">
-            민원<span className="text-[#38bdf8]">대장</span>
+          <Shield className="w-3.5 h-3.5 text-[#f59e0b] mb-0.5" />
+          <span className="text-[9.5px] font-extrabold tracking-tight text-white leading-none">
+            자치경찰
           </span>
           <span
             className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-[#090d16] ${
@@ -136,15 +140,17 @@ export const GlobalNav: React.FC<GlobalNavProps> = ({
           type="button"
           onClick={() => onToggleServer(!isServerOn)}
           title={
-            isServerOn
-              ? `다중 접속 REST API 서버 가동 중 (포트 ${serverStatus.port}) — 클릭 시 중지`
-              : `다중 접속 REST API 서버 꺼짐 — 클릭 시 다른 사용자 접속 허용 시작`
+            !canControlServer
+              ? '다중 접속 서버 제어는 최고관리자 또는 지정된 관리자(1명)만 가능합니다'
+              : isServerOn
+                ? `다중 접속 서버 가동 중 (포트 ${serverStatus.port}) — 클릭 시 중지`
+                : '다중 접속 서버 꺼짐 — 클릭 시 다른 사용자 접속 허용 시작'
           }
           className={`w-full py-1.5 rounded-[7px] flex flex-col items-center justify-center gap-0.5 transition-all duration-150 active:scale-95 cursor-pointer border ${
             isServerOn
               ? 'bg-[#064e3b]/60 text-[#34d399] border-[#059669]/60 hover:bg-[#064e3b]/90'
               : 'bg-[#111827] text-slate-400 border-[#1e293b] hover:bg-[#1e293b] hover:text-white'
-          }`}
+          } ${!canControlServer ? 'opacity-60' : ''}`}
         >
           <Server className="w-3.5 h-3.5" />
           <span className="text-[10px] font-medium leading-none">
@@ -157,8 +163,8 @@ export const GlobalNav: React.FC<GlobalNavProps> = ({
           onClick={onOpenAccountModal}
           title={
             session
-              ? `현재 로그인: ${session.user.displayName} (${session.user.username}) — 계정 전환/로그아웃`
-              : '로그인 모달 열기'
+              ? `현재 로그인: ${session.user.displayName} (${session.user.jobTitle}) — 계정 전환/로그아웃`
+              : '로그인 창 열기'
           }
           className="w-full py-1.5 rounded-[7px] bg-[#111827] hover:bg-[#1e293b] text-slate-300 hover:text-white border border-[#1e293b] flex flex-col items-center justify-center gap-0.5 transition-all duration-150 active:scale-95 cursor-pointer"
         >

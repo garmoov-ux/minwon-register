@@ -109,7 +109,7 @@ export const DeviceManagementView: React.FC<DeviceManagementViewProps> = ({
               }`}
             >
               <Table2 className="w-3.5 h-3.5" />
-              <span>연도별·유형별 운영현황 통계표 (operator-status)</span>
+              <span>연도별·유형별 운영현황 통계표</span>
             </button>
             <button
               type="button"
@@ -152,7 +152,7 @@ export const DeviceManagementView: React.FC<DeviceManagementViewProps> = ({
           {canWrite && (
             <PillButton variant="pearl-capsule" size="sm" onClick={() => void handleReloadCsv()}>
               <RefreshCw className="w-3.5 h-3.5 text-[#059669]" />
-              <span>원본 CSV(487대) 동기화</span>
+              <span>원본 장비(487대) 동기화</span>
             </PillButton>
           )}
           <PillButton variant="primary" size="sm" onClick={() => void handleExportStatsExcel()}>

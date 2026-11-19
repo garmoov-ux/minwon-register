@@ -1,7 +1,11 @@
 import React, { useState } from 'react'
 import {
+  Briefcase,
+  CheckCircle2,
   Copy,
   Globe,
+  Mail,
+  Phone,
   Play,
   Plus,
   Server,
@@ -15,6 +19,7 @@ import {
   AuditLogEntry,
   CreateUserPayload,
   RestServerStatus,
+  USER_ROLE_LABELS,
   UserAccount,
   UserRole
 } from '@shared/types/domain'
@@ -27,17 +32,19 @@ interface ServerControlViewProps {
   serverStatus: RestServerStatus
   users: UserAccount[]
   auditLogs: AuditLogEntry[]
-  isAdmin: boolean
+  isSuperAdmin: boolean
+  canManageUsers: boolean
+  canControlServer: boolean
   onToggleServer: (enabled: boolean, port?: number) => Promise<void>
   onUpdateConfig: (next: AppConfig) => Promise<void>
   onRefreshSnapshot: () => Promise<void>
   onShowToast: (msg: string) => void
 }
 
-const ROLE_LABEL: Record<UserRole, string> = {
-  ADMIN: '시스템 관리자 (전체 권한)',
-  OPERATOR: '민원 담당자 (등록/수정/내보내기)',
-  VIEWER: '현황 열람자 (조회/내보내기 전용)'
+const ROLE_DESCRIPTION: Record<UserRole, string> = {
+  SUPER_ADMIN: '최고관리자 (서버 제어 · 관리자 지정 · 전체 관리)',
+  ADMIN: '관리자 (지정된 1명 서버 켜기/끄기 가능 · 대장/장비 관리)',
+  USER: '사용자 (민원접수대장 등록/수정/조회 및 엑셀 출력)'
 }
 
 export const ServerControlView: React.FC<ServerControlViewProps> = ({
@@ -45,7 +52,9 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
   serverStatus,
   users,
   auditLogs,
-  isAdmin,
+  isSuperAdmin,
+  canManageUsers,
+  canControlServer,
   onToggleServer,
   onUpdateConfig,
   onRefreshSnapshot,
@@ -54,12 +63,26 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
   const [portInput, setPortInput] = useState<number>(config.server.port)
   const [editingUser, setEditingUser] = useState<CreateUserPayload | null>(null)
 
+  const designatedAdminUser = users.find(
+    (u) =>
+      u.role === 'ADMIN' &&
+      (u.canToggleServer || u.username === config.server.designatedAdminUsername)
+  )
+
   const handleCopyUrl = async (url: string): Promise<void> => {
     try {
       await navigator.clipboard.writeText(url)
       onShowToast(`접속 주소가 복사되었습니다: ${url}`)
     } catch {
       onShowToast(url)
+    }
+  }
+
+  const handleDesignateServerAdmin = async (username: string): Promise<void> => {
+    const res = await unifiedApiClient.designateServerAdmin(username)
+    onShowToast(res.message)
+    if (res.ok) {
+      await onRefreshSnapshot()
     }
   }
 
@@ -84,14 +107,37 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
 
   return (
     <div className="h-full p-3.5 w-full min-h-0 grid grid-cols-12 gap-3">
-      {/* 좌측 6컬럼: 다중 사용자 접속용 내장 REST API & 웹 서버 제어판 */}
+      {/* 좌측 6컬럼: 다중 사용자 접속 서버 제어판 */}
       <div className="col-span-6 min-h-0 flex flex-col gap-3">
         <UtilityCard
-          title="다중 사용자 접속 REST API 서버 제어판"
+          title="다중 사용자 접속 서버 제어판"
           badge={<Server className="w-3.5 h-3.5 text-[#2563eb]" />}
           className="shrink-0"
         >
           <div className="space-y-3">
+            {/* 서버 가동 권한 안내 배너 */}
+            <div className="rounded-[8px] bg-[#f1f5f9] border border-[#cbd5e1] px-3 py-2 flex items-center justify-between text-[11.5px]">
+              <span className="font-semibold text-[#334155]">
+                서버 켜기 허용 계정: <strong className="text-[#0f172a]">최고관리자(admin)</strong> 및{' '}
+                <strong className="text-[#2563eb]">
+                  지정 관리자 1명(
+                  {designatedAdminUser
+                    ? `${designatedAdminUser.displayName} · ${designatedAdminUser.username}`
+                    : config.server.designatedAdminUsername}
+                  )
+                </strong>
+              </span>
+              <span
+                className={`px-2 py-0.5 rounded-[5px] text-[10.5px] font-bold ${
+                  canControlServer
+                    ? 'bg-[#ecfdf5] text-[#047857] border border-[#a7f3d0]'
+                    : 'bg-[#fef2f2] text-[#dc2626] border border-[#fecaca]'
+                }`}
+              >
+                {canControlServer ? '서버 제어 권한 있음' : '서버 제어 권한 없음'}
+              </span>
+            </div>
+
             <div
               className={`rounded-[10px] border p-3.5 flex items-center justify-between ${
                 serverStatus.running
@@ -114,8 +160,8 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
                 </div>
                 <p className="text-[11.5px] text-[#475569]">
                   {serverStatus.running
-                    ? '같은 네트워크(사내망/공유기)의 다른 PC에서 아래 주소로 웹 브라우저 또는 클라이언트로 즉시 접속할 수 있습니다.'
-                    : '서버 기능을 켜면 다른 PC 사용자들이 REST API 및 웹 브라우저로 동시 접속하여 민원접수대장을 함께 사용할 수 있습니다.'}
+                    ? '같은 네트워크(사내망)의 다른 컴퓨터에서 아래 주소로 접속하여 민원접수대장을 실시간 함께 사용할 수 있습니다.'
+                    : '서버 기능을 켜면 다른 컴퓨터 사용자들이 웹 브라우저나 프로그램으로 동시 접속할 수 있습니다.'}
                 </p>
               </div>
 
@@ -124,13 +170,14 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
                   type="number"
                   value={portInput}
                   onChange={(e) => setPortInput(Number(e.target.value))}
-                  disabled={serverStatus.running}
+                  disabled={serverStatus.running || !canControlServer}
                   className="w-[74px] h-[32px] px-2 rounded-[6px] border border-[#cbd5e1] bg-white text-center font-bold text-[12.5px] disabled:bg-[#e2e8f0]"
                   title="서버 포트 번호 (기본 8090)"
                 />
                 {serverStatus.running ? (
                   <PillButton
                     variant="dark-utility"
+                    disabled={!canControlServer}
                     onClick={() => void onToggleServer(false, portInput)}
                   >
                     <Square className="w-3.5 h-3.5 text-[#f59e0b]" />
@@ -139,6 +186,7 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
                 ) : (
                   <PillButton
                     variant="primary"
+                    disabled={!canControlServer}
                     onClick={() => void onToggleServer(true, portInput)}
                   >
                     <Play className="w-3.5 h-3.5" />
@@ -153,7 +201,7 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
               <div className="flex items-center justify-between text-[12px]">
                 <span className="font-bold text-[#0f172a] inline-flex items-center gap-1.5">
                   <Globe className="w-3.5 h-3.5 text-[#2563eb]" />
-                  다른 사용자 접속 주소 (웹 브라우저 및 REST API 겸용)
+                  다른 사용자 접속 주소 안내
                 </span>
                 <span className="text-[11px] text-[#64748b]">
                   실시간 연결: {serverStatus.activeConnections}명 · 누적 요청:{' '}
@@ -181,19 +229,20 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
                   ))}
                 </div>
               ) : (
-                <div className="text-[12px] text-[#64748b] py-2">
-                  [서버 기능 켜기] 버튼을 누르면 사내망 다른 PC에서 접속할 수 있는 IP 주소가 표시됩니다.
+                <div className="text-[12px] text-[#64748b] py-1.5">
+                  [서버 기능 켜기] 버튼을 누르면 사내망 다른 컴퓨터에서 접속할 수 있는 주소가 표시됩니다.
                 </div>
               )}
 
               {/* 서버 옵션 스위치 */}
               <div className="pt-2 border-t border-[#e2e8f0] flex items-center justify-between text-[12px]">
                 <span className="font-medium text-[#334155]">
-                  원격 접속 사용자의 민원 등록·수정 허용 (끄면 열람 전용)
+                  원격 접속 사용자의 민원 등록·수정 허용 여부
                 </span>
                 <div className="inline-flex rounded-[6px] border border-[#cbd5e1] bg-white p-0.5">
                   <button
                     type="button"
+                    disabled={!canControlServer}
                     onClick={() =>
                       void onUpdateConfig({
                         ...config,
@@ -210,6 +259,7 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
                   </button>
                   <button
                     type="button"
+                    disabled={!canControlServer}
                     onClick={() =>
                       void onUpdateConfig({
                         ...config,
@@ -230,9 +280,9 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
           </div>
         </UtilityCard>
 
-        {/* 감사 로그 (누가 언제 로그인/민원 등록·수정했는지 추적) */}
+        {/* 감사 기록 (누가 언제 로그인/민원 등록·수정했는지 추적) */}
         <UtilityCard
-          title="다중 사용자 접속 및 작업 이력 (Audit Log)"
+          title="사용자 접속 및 작업 기록"
           badge={<Shield className="w-3.5 h-3.5 text-[#2563eb]" />}
           className="flex-1 min-h-0"
           bodyClassName="overflow-y-auto"
@@ -241,8 +291,8 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
             <thead className="sticky top-0 bg-[#f1f5f9] text-[#334155] border-b border-[#cbd5e1] font-bold">
               <tr>
                 <th className="py-1.5 px-2 w-[135px]">시각</th>
-                <th className="py-1.5 px-2 w-[70px]">계정</th>
-                <th className="py-1.5 px-2 w-[95px]">작업</th>
+                <th className="py-1.5 px-2 w-[70px]">아이디</th>
+                <th className="py-1.5 px-2 w-[95px]">작업 구분</th>
                 <th className="py-1.5 px-2">상세 내역</th>
               </tr>
             </thead>
@@ -264,13 +314,13 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
         </UtilityCard>
       </div>
 
-      {/* 우측 6컬럼: 접속 사용자 계정 및 권한(RBAC) 관리 */}
+      {/* 우측 6컬럼: 사용자 계정(최고관리자 / 관리자 / 사용자) 및 서버 구동 관리자(1명) 지정 */}
       <div className="col-span-6 min-h-0 flex flex-col">
         <UtilityCard
-          title="사용자 계정 및 접속 권한(RBAC) 관리"
+          title="사용자 계정 관리 (최고관리자 · 관리자 · 사용자)"
           badge={<Users className="w-3.5 h-3.5 text-[#2563eb]" />}
           rightAction={
-            isAdmin && (
+            canManageUsers && (
               <PillButton
                 variant="primary"
                 size="sm"
@@ -279,14 +329,17 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
                     username: '',
                     password: '',
                     displayName: '',
-                    department: '교통단속장비운영팀',
-                    role: 'OPERATOR',
+                    jobTitle: '주무관',
+                    email: '',
+                    contact: '',
+                    role: 'USER',
+                    canToggleServer: false,
                     active: true
                   })
                 }
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>신규 사용자 추가</span>
+                <span>신규 사용자 등록</span>
               </PillButton>
             )
           }
@@ -294,146 +347,236 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
           bodyClassName="overflow-y-auto space-y-2 pr-1"
         >
           <div className="text-[11.5px] text-[#64748b] mb-1">
-            다중 접속 서버를 켰을 때 다른 PC에서 로그인할 수 있는 사용자 계정 목록입니다.
+            최고관리자 외에 <strong className="text-[#2563eb]">지정된 관리자 1명</strong>만 다중 접속 서버 기능을 켤 수 있습니다.
           </div>
 
-          {users.map((u) => (
-            <div
-              key={u.username}
-              className="rounded-[9px] border border-[#cbd5e1] bg-[#f8fafc] p-3 flex items-center justify-between gap-3"
-            >
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2">
-                  <span className="text-[13.5px] font-bold text-[#0f172a]">
-                    {u.displayName}
-                  </span>
-                  <span className="px-2 py-0.5 rounded-[5px] bg-white border border-[#cbd5e1] text-[11px] font-bold text-[#2563eb]">
-                    ID: {u.username}
-                  </span>
-                  <span className="px-2 py-0.5 rounded-[5px] bg-[#eff6ff] text-[#1d4ed8] text-[11px] font-semibold">
-                    {ROLE_LABEL[u.role] || u.role}
-                  </span>
-                </div>
-                <div className="text-[11.5px] text-[#64748b]">
-                  소속: {u.department} · 최근 로그인:{' '}
-                  {u.lastLoginAt
-                    ? new Date(u.lastLoginAt).toLocaleString('ko-KR')
-                    : '기록 없음'}
-                </div>
-              </div>
+          {users.map((u) => {
+            const isDesignatedServerAdmin =
+              u.role === 'ADMIN' &&
+              (u.canToggleServer || u.username === config.server.designatedAdminUsername)
 
-              {isAdmin && (
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <PillButton
-                    variant="pearl-capsule"
-                    size="sm"
-                    onClick={() =>
-                      setEditingUser({
-                        username: u.username,
-                        password: '',
-                        displayName: u.displayName,
-                        department: u.department,
-                        role: u.role,
-                        active: u.active
-                      })
-                    }
-                  >
-                    수정/비번재설정
-                  </PillButton>
-                  {u.username !== 'admin' && (
-                    <button
-                      type="button"
-                      onClick={() => void handleDeleteUser(u.username)}
-                      className="p-1.5 rounded-[6px] bg-[#fef2f2] hover:bg-[#fee2e2] text-[#dc2626] cursor-pointer"
-                      title="계정 삭제"
+            return (
+              <div
+                key={u.username}
+                className={`rounded-[9px] border p-3 flex items-center justify-between gap-3 ${
+                  u.role === 'SUPER_ADMIN'
+                    ? 'bg-[#fffbeb] border-[#fde68a]'
+                    : isDesignatedServerAdmin
+                      ? 'bg-[#eff6ff] border-[#93c5fd]'
+                      : 'bg-[#f8fafc] border-[#cbd5e1]'
+                }`}
+              >
+                <div className="space-y-1 min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[13.5px] font-extrabold text-[#0f172a]">
+                      {u.displayName}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-[5px] bg-white border border-[#cbd5e1] text-[11px] font-bold text-[#334155]">
+                      아이디: {u.username}
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded-[5px] text-[11px] font-bold ${
+                        u.role === 'SUPER_ADMIN'
+                          ? 'bg-[#fef3c7] text-[#b45309] border border-[#fde68a]'
+                          : u.role === 'ADMIN'
+                            ? 'bg-[#dbeafe] text-[#1d4ed8]'
+                            : 'bg-[#e2e8f0] text-[#334155]'
+                      }`}
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  )}
+                      {USER_ROLE_LABELS[u.role]}
+                    </span>
+                    {(u.role === 'SUPER_ADMIN' || isDesignatedServerAdmin) && (
+                      <span className="px-2 py-0.5 rounded-[5px] bg-[#064e3b] text-[#34d399] text-[10.5px] font-bold inline-flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" />
+                        서버 켜기 허용 계정
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 text-[11.5px] text-[#475569] pt-0.5">
+                    <span className="inline-flex items-center gap-1 truncate">
+                      <Briefcase className="w-3 h-3 text-[#64748b] shrink-0" />
+                      직책: <strong className="text-[#0f172a]">{u.jobTitle || '-'}</strong>
+                    </span>
+                    <span className="inline-flex items-center gap-1 truncate">
+                      <Phone className="w-3 h-3 text-[#64748b] shrink-0" />
+                      {u.contact || '-'}
+                    </span>
+                    <span className="inline-flex items-center gap-1 truncate" title={u.email}>
+                      <Mail className="w-3 h-3 text-[#64748b] shrink-0" />
+                      {u.email || '-'}
+                    </span>
+                  </div>
                 </div>
-              )}
-            </div>
-          ))}
+
+                {canManageUsers && (
+                  <div className="flex flex-col items-end gap-1.5 shrink-0">
+                    <div className="flex items-center gap-1">
+                      {isSuperAdmin && u.username !== 'admin' && !isDesignatedServerAdmin && (
+                        <PillButton
+                          variant="secondary-pill"
+                          size="sm"
+                          onClick={() => void handleDesignateServerAdmin(u.username)}
+                        >
+                          서버 관리자로 지정
+                        </PillButton>
+                      )}
+                      <PillButton
+                        variant="pearl-capsule"
+                        size="sm"
+                        onClick={() =>
+                          setEditingUser({
+                            username: u.username,
+                            password: '',
+                            displayName: u.displayName,
+                            jobTitle: u.jobTitle,
+                            email: u.email,
+                            contact: u.contact,
+                            role: u.role,
+                            canToggleServer: u.canToggleServer,
+                            active: u.active
+                          })
+                        }
+                      >
+                        정보 수정
+                      </PillButton>
+                      {isSuperAdmin && u.username !== 'admin' && (
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteUser(u.username)}
+                          className="p-1.5 rounded-[6px] bg-[#fef2f2] hover:bg-[#fee2e2] text-[#dc2626] cursor-pointer"
+                          title="계정 삭제"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </UtilityCard>
       </div>
 
-      {/* 사용자 계정 추가/수정 모달 */}
+      {/* 사용자 계정 등록/수정 모달 (아이디, 비밀번호, 이름, 직책, 이메일, 연락처, 등급) */}
       {editingUser && (
         <div className="fixed inset-0 z-50 bg-[#090d16]/60 flex items-center justify-center p-4">
-          <div className="w-[420px] rounded-[12px] bg-white border border-[#cbd5e1] p-4 space-y-3 apple-product-shadow">
+          <div className="w-[460px] rounded-[12px] bg-white border border-[#cbd5e1] p-4 space-y-3 apple-product-shadow">
             <h3 className="text-[14px] font-bold text-[#0f172a]">
-              사용자 계정 등록 / 권한 설정
+              사용자 계정 정보 등록 및 수정
             </h3>
             <form onSubmit={(e) => void handleSaveUser(e)} className="space-y-2.5 text-[12px]">
-              <div>
-                <label className="block font-semibold text-[#475569] mb-1">아이디 (Username)</label>
-                <input
-                  type="text"
-                  value={editingUser.username}
-                  onChange={(e) =>
-                    setEditingUser({ ...editingUser, username: e.target.value })
-                  }
-                  placeholder="예: hong"
-                  required
-                  className="w-full h-[32px] px-2.5 rounded-[6px] border border-[#cbd5e1]"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-[#475569] mb-1">
-                  비밀번호 (수정 시 비워두면 기존 비밀번호 유지)
-                </label>
-                <input
-                  type="password"
-                  value={editingUser.password || ''}
-                  onChange={(e) =>
-                    setEditingUser({ ...editingUser, password: e.target.value })
-                  }
-                  placeholder="초기 비밀번호 입력"
-                  className="w-full h-[32px] px-2.5 rounded-[6px] border border-[#cbd5e1]"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block font-semibold text-[#475569] mb-1">담당자 이름</label>
+                  <label className="block font-semibold text-[#475569] mb-1">아이디</label>
+                  <input
+                    type="text"
+                    value={editingUser.username}
+                    onChange={(e) =>
+                      setEditingUser({ ...editingUser, username: e.target.value })
+                    }
+                    placeholder="예: manager"
+                    required
+                    className="w-full h-[32px] px-2.5 rounded-[6px] border border-[#cbd5e1]"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-[#475569] mb-1">
+                    비밀번호 (수정 시 공란 유지 가능)
+                  </label>
+                  <input
+                    type="password"
+                    value={editingUser.password || ''}
+                    onChange={(e) =>
+                      setEditingUser({ ...editingUser, password: e.target.value })
+                    }
+                    placeholder="비밀번호 입력"
+                    className="w-full h-[32px] px-2.5 rounded-[6px] border border-[#cbd5e1]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block font-semibold text-[#475569] mb-1">이름</label>
                   <input
                     type="text"
                     value={editingUser.displayName}
                     onChange={(e) =>
                       setEditingUser({ ...editingUser, displayName: e.target.value })
                     }
-                    placeholder="예: 홍길동"
+                    placeholder="예: 김자치"
                     required
                     className="w-full h-[32px] px-2.5 rounded-[6px] border border-[#cbd5e1]"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold text-[#475569] mb-1">소속 부서</label>
+                  <label className="block font-semibold text-[#475569] mb-1">직책</label>
                   <input
                     type="text"
-                    value={editingUser.department}
+                    value={editingUser.jobTitle}
                     onChange={(e) =>
-                      setEditingUser({ ...editingUser, department: e.target.value })
+                      setEditingUser({ ...editingUser, jobTitle: e.target.value })
                     }
+                    placeholder="예: 교통시설관리 팀장 / 주무관"
+                    required
+                    className="w-full h-[32px] px-2.5 rounded-[6px] border border-[#cbd5e1]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block font-semibold text-[#475569] mb-1">이메일</label>
+                  <input
+                    type="email"
+                    value={editingUser.email}
+                    onChange={(e) =>
+                      setEditingUser({ ...editingUser, email: e.target.value })
+                    }
+                    placeholder="예: user@jeju.go.kr"
+                    className="w-full h-[32px] px-2.5 rounded-[6px] border border-[#cbd5e1]"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-[#475569] mb-1">연락처</label>
+                  <input
+                    type="text"
+                    value={editingUser.contact}
+                    onChange={(e) =>
+                      setEditingUser({ ...editingUser, contact: e.target.value })
+                    }
+                    placeholder="예: 010-1234-5678 / 064-710-0000"
                     className="w-full h-[32px] px-2.5 rounded-[6px] border border-[#cbd5e1]"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block font-semibold text-[#475569] mb-1">권한 등급</label>
+                <label className="block font-semibold text-[#475569] mb-1">사용자 권한 등급</label>
                 <select
                   value={editingUser.role}
-                  onChange={(e) =>
-                    setEditingUser({ ...editingUser, role: e.target.value as UserRole })
-                  }
-                  className="w-full h-[32px] px-2.5 rounded-[6px] border border-[#cbd5e1]"
+                  disabled={editingUser.username === 'admin'}
+                  onChange={(e) => {
+                    const nextRole = e.target.value as UserRole
+                    setEditingUser({
+                      ...editingUser,
+                      role: nextRole,
+                      canToggleServer: nextRole !== 'USER'
+                    })
+                  }}
+                  className="w-full h-[32px] px-2.5 rounded-[6px] border border-[#cbd5e1] disabled:bg-[#e2e8f0]"
                 >
-                  <option value="ADMIN">시스템 관리자 (전체 관리)</option>
-                  <option value="OPERATOR">민원 담당자 (민원/장비 등록·수정·내보내기)</option>
-                  <option value="VIEWER">현황 열람자 (조회·내보내기 전용)</option>
+                  <option value="SUPER_ADMIN">{ROLE_DESCRIPTION.SUPER_ADMIN}</option>
+                  <option value="ADMIN">{ROLE_DESCRIPTION.ADMIN}</option>
+                  <option value="USER">{ROLE_DESCRIPTION.USER}</option>
                 </select>
+                {editingUser.role === 'ADMIN' && (
+                  <p className="text-[11px] text-[#2563eb] mt-1 font-medium">
+                    * 관리자로 저장하면 이 계정이 서버 기능을 켤 수 있는 지정 관리자(1명)로 자동 설정됩니다.
+                  </p>
+                )}
               </div>
 
               <div className="pt-2 flex justify-end gap-2">

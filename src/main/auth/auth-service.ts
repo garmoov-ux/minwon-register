@@ -20,12 +20,15 @@ export function verifyPassword(password: string, storedHash: string): boolean {
   return crypto.timingSafeEqual(derived, keyBuf)
 }
 
-interface TokenPayload {
+export interface TokenPayload {
   userId: number
   username: string
   displayName: string
-  department: string
+  jobTitle: string
+  email: string
+  contact: string
   role: UserAccount['role']
+  canToggleServer: boolean
   exp: number
 }
 
@@ -35,8 +38,11 @@ export function issueAuthSession(user: UserAccount, ttlHours = 24): AuthSession 
     userId: user.id,
     username: user.username,
     displayName: user.displayName,
-    department: user.department,
+    jobTitle: user.jobTitle,
+    email: user.email,
+    contact: user.contact,
     role: user.role,
+    canToggleServer: user.canToggleServer,
     exp: expiresAtDate.getTime()
   }
 

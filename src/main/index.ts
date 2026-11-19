@@ -1,7 +1,7 @@
 import { app, BrowserWindow } from 'electron'
 import path from 'path'
 import { IPC_CHANNELS } from '@shared/ipc-channels'
-import { AppConfig, AppSnapshot } from '@shared/types/domain'
+import { AppConfig, AppSnapshot, UserAccount } from '@shared/types/domain'
 import { collectStorageInfo } from './config/app-paths'
 import { loadConfig, saveConfigAtomic } from './config/config-manager'
 import { writeSystemLog } from './config/file-logger'
@@ -11,16 +11,17 @@ import { MinwonRepository } from './db/minwon-repo'
 import { DeviceRepository } from './db/device-repo'
 import { CodeRepository } from './db/code-repo'
 import { EmbeddedRestServer } from './server/rest-server'
-import { registerIpcHandlers } from './ipc/handlers'
+import { canUserControlServer, registerIpcHandlers } from './ipc/handlers'
 import { createMinwonAppIcon, setupSystemTray } from './tray'
 
 let mainWindow: BrowserWindow | null = null
 let isQuitting = false
 
-app.setName('Minwon Register - 무인교통단속장비 민원접수대장 및 운영현황 관리')
+const APP_KOREAN_TITLE = '자치경찰 무인교통단속장비 민원접수대장'
+process.title = APP_KOREAN_TITLE
+app.setName(APP_KOREAN_TITLE)
 app.setAppUserModelId('com.inno.minwonregister')
 
-// 개발 모드(npm run dev)는 배포용 포터블이 트레이에서 실행 중이어도 독립 실행 허용
 const isDev = Boolean(process.env.ELECTRON_RENDERER_URL)
 const gotSingleInstanceLock = isDev ? true : app.requestSingleInstanceLock()
 
@@ -43,6 +44,7 @@ if (!gotSingleInstanceLock) {
     const deviceRepo = new DeviceRepository(db)
     const codeRepo = new CodeRepository(db)
 
+    let currentUser: UserAccount | null = null
     let restServer: EmbeddedRestServer
 
     const buildSnapshot = (): AppSnapshot => ({
@@ -85,7 +87,7 @@ if (!gotSingleInstanceLock) {
           server: { ...config.server, enabled: true }
         })
       } catch (err) {
-        writeSystemLog('ERROR', `초기 REST API 서버 기동 실패: ${(err as Error).message}`)
+        writeSystemLog('ERROR', `초기 다중 접속 서버 기동 실패: ${(err as Error).message}`)
       }
     }
 
@@ -102,7 +104,7 @@ if (!gotSingleInstanceLock) {
       autoHideMenuBar: true,
       backgroundColor: '#f1f5f9',
       icon: appIcon,
-      title: '민원접수대장 - 무인교통단속장비 민원 및 운영현황 관리 시스템',
+      title: APP_KOREAN_TITLE,
       webPreferences: {
         preload: path.join(__dirname, '../preload/index.js'),
         contextIsolation: true,
@@ -114,7 +116,9 @@ if (!gotSingleInstanceLock) {
     const trayControl = setupSystemTray({
       isServerRunning: () => restServer.getStatus().running,
       getServerPort: () => config.server.port,
+      canToggleServer: () => canUserControlServer(currentUser, config),
       onToggleServer: async (next: boolean) => {
+        if (!canUserControlServer(currentUser, config)) return
         if (next) {
           await restServer.start(config.server.port, config.server.host)
         } else {
@@ -155,6 +159,10 @@ if (!gotSingleInstanceLock) {
       setConfig: (next) => {
         config = next
       },
+      getCurrentUser: () => currentUser,
+      setCurrentUser: (u) => {
+        currentUser = u
+      },
       userRepo,
       minwonRepo,
       deviceRepo,
@@ -171,13 +179,13 @@ if (!gotSingleInstanceLock) {
       await mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'))
     }
 
-    writeSystemLog('INFO', '민원접수대장 시스템이 시작되었습니다.')
+    writeSystemLog('INFO', '자치경찰 무인교통단속장비 민원접수대장 시스템이 시작되었습니다.')
 
     app.on('before-quit', () => {
       isQuitting = true
       void restServer.stop()
       trayControl.destroyTray()
-      writeSystemLog('INFO', '민원접수대장 시스템이 정상 종료되었습니다.')
+      writeSystemLog('INFO', '자치경찰 무인교통단속장비 민원접수대장 시스템이 정상 종료되었습니다.')
       closeDatabase()
     })
   })

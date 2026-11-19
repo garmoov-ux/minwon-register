@@ -168,6 +168,16 @@ export const unifiedApiClient = {
     })
   },
 
+  async designateServerAdmin(username: string): Promise<ActionResult> {
+    if (!shouldUseRestApi() && window.minwonApi) {
+      return window.minwonApi.designateServerAdmin(username)
+    }
+    return fetchJson('/api/v1/users/designate-server-admin', {
+      method: 'POST',
+      body: JSON.stringify({ username })
+    })
+  },
+
   async deleteUser(username: string): Promise<ActionResult> {
     if (!shouldUseRestApi() && window.minwonApi) {
       return window.minwonApi.deleteUser(username)
@@ -215,6 +225,13 @@ export const unifiedApiClient = {
       return window.minwonApi.resetAllMinwon()
     }
     return { ok: false, message: '전체 데이터 초기화는 로컬 서버 호스트에서만 가능합니다.' }
+  },
+
+  async reloadMinwonCsv(): Promise<ActionResult> {
+    if (window.minwonApi) {
+      return window.minwonApi.reloadMinwonCsv()
+    }
+    return { ok: false, message: '기존 민원 데이터 원본 불러오기는 로컬 서버에서 수행해 주세요.' }
   },
 
   async listDevices(params?: {

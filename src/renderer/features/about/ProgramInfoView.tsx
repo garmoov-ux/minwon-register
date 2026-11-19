@@ -7,6 +7,7 @@ import { PillButton } from '../../components/ui/PillButton'
 interface ProgramInfoViewProps {
   storageInfo: StorageFolderItem[]
   serverRunning: boolean
+  canControlServer: boolean
   onOpenFolder: (kind: 'DATA' | 'EXPORT' | 'LOGS' | 'CONFIG') => void
   onToggleServer: () => void
 }
@@ -23,10 +24,10 @@ const RELEASE_HISTORY = [
     date: '2026-11-19',
     badge: '현재 운영 버전',
     items: [
-      '기존 Excel VBA 민원접수대장(13개 표준 항목, 빠른 기간 필터, 복합 검색, 동적 코드 추가) 100% 통합 및 고도화',
-      '무인교통단속장비 마스터(device.csv 487대) 내장 및 설치년도·보호구역·단속종류별 운영현황 통계표 자동 집계',
-      '담당자 로그인 모달 폼(관리자·담당자·열람자 권한 분리) 및 작업 감사 로그(Audit Log) 적용',
-      '다중 사용자 동시 접속용 내장 REST API & 웹 서버(On/Off 전환, 실시간 SSE 화면 동기화) 탑재'
+      '기존 민원접수대장 데이터(114건) 및 13개 표준 항목(빠른 기간 선택, 복합 검색, 동적 항목 추가) 완벽 통합',
+      '무인교통단속장비 마스터(487대) 내장 및 설치년도·보호구역·단속종류별 운영현황 통계표 실시간 집계',
+      '최고관리자 · 관리자(지정 1명 서버 구동 권한) · 사용자 3단계 권한 체계 및 자치경찰 전용 아이콘 적용',
+      '다중 사용자 동시 접속용 내장 서버(켜기/끄기 전환 및 실시간 화면 동기화) 탑재'
     ]
   }
 ]
@@ -34,6 +35,7 @@ const RELEASE_HISTORY = [
 export const ProgramInfoView: React.FC<ProgramInfoViewProps> = ({
   storageInfo,
   serverRunning,
+  canControlServer,
   onOpenFolder,
   onToggleServer
 }) => {
@@ -50,15 +52,15 @@ export const ProgramInfoView: React.FC<ProgramInfoViewProps> = ({
             <div className="grid grid-cols-12 items-center px-3.5 py-2">
               <span className="col-span-4 text-[#64748b] font-medium">프로그램명</span>
               <span className="col-span-1 text-center text-[#94a3b8]">:</span>
-              <span className="col-span-7 text-right font-extrabold text-[#0f172a] text-[14px]">
-                Minwon Register (민원접수대장)
+              <span className="col-span-7 text-right font-extrabold text-[#0f172a] text-[13.5px]">
+                자치경찰 무인교통단속장비 민원접수대장
               </span>
             </div>
             <div className="grid grid-cols-12 items-center px-3.5 py-2">
               <span className="col-span-4 text-[#64748b] font-medium">시스템 구분</span>
               <span className="col-span-1 text-center text-[#94a3b8]">:</span>
               <span className="col-span-7 text-right font-semibold text-[#0f172a]">
-                무인교통단속장비 민원접수 및 운영현황 관리 시스템
+                민원접수대장 및 단속장비 운영현황 관리 시스템
               </span>
             </div>
             <div className="grid grid-cols-12 items-center px-3.5 py-2">
@@ -72,7 +74,7 @@ export const ProgramInfoView: React.FC<ProgramInfoViewProps> = ({
               <span className="col-span-4 text-[#64748b] font-medium">핵심 기능</span>
               <span className="col-span-1 text-center text-[#94a3b8]">:</span>
               <span className="col-span-7 text-right font-semibold text-[#0f172a]">
-                민원 대장 · 장비 통계 · 로그인 인증 · 다중 접속 서버
+                민원 대장 · 장비 통계 · 사용자 인증 · 다중 접속 서버
               </span>
             </div>
 
@@ -177,10 +179,11 @@ export const ProgramInfoView: React.FC<ProgramInfoViewProps> = ({
           </div>
 
           <div className="pt-3 border-t border-[#e2e8f0] flex items-center justify-between gap-2 shrink-0">
-            <span className="text-[12px] text-[#64748b]">다중 사용자 REST API 서버 빠른 제어</span>
+            <span className="text-[12px] text-[#64748b]">다중 사용자 접속 서버 빠른 제어</span>
             <PillButton
               variant={serverRunning ? 'dark-utility' : 'primary'}
               size="sm"
+              disabled={!canControlServer}
               onClick={onToggleServer}
             >
               <Server className="w-3.5 h-3.5" />
