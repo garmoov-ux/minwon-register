@@ -3,6 +3,7 @@ import path from 'path'
 import zlib from 'zlib'
 import { DeviceOperationStats, MinwonRecord } from '@shared/types/domain'
 import { resolveAppPaths } from '../config/app-paths'
+import { buildDeviceStatsReportFiles } from './device-stats-report'
 
 function escapeXml(str: string | number | null | undefined): string {
   const s = String(str ?? '')
@@ -35,9 +36,8 @@ function computeVisualWidth(text: string): number {
 
 /**
  * 외부 무거운 의존성 없이 순수 Node.js zlib Deflate로 표준 OpenXML(.xlsx) ZIP 아카이브를 생성한다.
- * (글꼴: 맑은 고딕 10pt, 1행 배경 #D9E1F2 굵게, 행높이 25, 얇은 테두리 #BFBFBF, 1행 틀 고정 A2, 자동 필터, 열 너비 자동 맞춤)
  */
-function createZipBuffer(files: Array<{ name: string; content: Buffer }>): Buffer {
+export function createZipBuffer(files: Array<{ name: string; content: Buffer }>): Buffer {
   const localHeaders: Buffer[] = []
   const centralHeaders: Buffer[] = []
   let offset = 0
@@ -170,6 +170,9 @@ export function buildStandardXlsxBuffer(params: {
     })
     .join('')
 
+  const footerText =
+    '&amp;L작성일: &amp;D&amp;R본 자료는 중요 공무 자료이므로 외부 유출 및 무단 배포를 금지합니다.'
+
   const sheetXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
   <sheetViews>
@@ -185,6 +188,12 @@ export function buildStandardXlsxBuffer(params: {
     ${dataRowsXml}
   </sheetData>
   <autoFilter ref="A1:${lastCol}${totalRows}"/>
+  <printOptions horizontalCentered="1"/>
+  <pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/>
+  <pageSetup paperSize="9" scale="75" fitToHeight="0" orientation="landscape"/>
+  <headerFooter>
+    <oddFooter>${footerText}</oddFooter>
+  </headerFooter>
 </worksheet>`
 
   const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -331,59 +340,8 @@ export function exportDeviceOperationStatsToExcel(
   stats: DeviceOperationStats,
   customFilePath?: string
 ): { filePath: string; buffer: Buffer } {
-  const headers = [
-    '연번',
-    '설치년도',
-    '일반구역',
-    '어린이보호구역',
-    '노인보호구역',
-    '장애인보호구역',
-    '신호과속(고)',
-    '과속(고)',
-    '구간(고)',
-    '운행제한(고)',
-    '진입금지(고)',
-    '과속(이)',
-    '합계'
-  ]
-
-  const rows: Array<Array<string | number>> = stats.rows.map((r) => [
-    r.seq,
-    r.installYear,
-    r.zoneGeneral,
-    r.zoneChild,
-    r.zoneElder,
-    r.zoneDisabled,
-    r.fixedSignalSpeed,
-    r.fixedSpeed,
-    r.fixedSection,
-    r.fixedRestriction,
-    r.fixedNoEntry,
-    r.mobileSpeed,
-    r.totalCount
-  ])
-
-  rows.push([
-    '합계',
-    '',
-    stats.totals.zoneGeneral,
-    stats.totals.zoneChild,
-    stats.totals.zoneElder,
-    stats.totals.zoneDisabled,
-    stats.totals.fixedSignalSpeed,
-    stats.totals.fixedSpeed,
-    stats.totals.fixedSection,
-    stats.totals.fixedRestriction,
-    stats.totals.fixedNoEntry,
-    stats.totals.mobileSpeed,
-    stats.totals.totalCount
-  ])
-
-  const buffer = buildStandardXlsxBuffer({
-    sheetName: '무인교통단속장비 운영현황',
-    headers,
-    rows
-  })
+  const reportFiles = buildDeviceStatsReportFiles(stats)
+  const buffer = createZipBuffer(reportFiles)
 
   const { exportDir } = resolveAppPaths()
   const fileName = `통계_${getTimestampSuffix()}.xlsx`

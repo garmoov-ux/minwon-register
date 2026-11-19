@@ -3,6 +3,7 @@ import { FolderOpen, History, Info, Server, Wrench } from 'lucide-react'
 import { StorageFolderItem } from '@shared/types/domain'
 import { UtilityCard } from '../../components/ui/UtilityCard'
 import { PillButton } from '../../components/ui/PillButton'
+import logoUrl from '../../assets/logo.svg'
 
 interface ProgramInfoViewProps {
   storageInfo: StorageFolderItem[]
@@ -52,8 +53,9 @@ export const ProgramInfoView: React.FC<ProgramInfoViewProps> = ({
             <div className="grid grid-cols-12 items-center px-3.5 py-2">
               <span className="col-span-4 text-[#64748b] font-medium">프로그램명</span>
               <span className="col-span-1 text-center text-[#94a3b8]">:</span>
-              <span className="col-span-7 text-right font-extrabold text-[#0f172a] text-[13.5px]">
-                자치경찰 무인교통단속장비 민원접수대장
+              <span className="col-span-7 text-right font-extrabold text-[#0f172a] text-[13.5px] inline-flex items-center justify-end gap-1.5">
+                <img src={logoUrl} alt="로고" className="w-4 h-4 object-contain" />
+                <span>자치경찰 무인교통단속장비 민원접수대장</span>
               </span>
             </div>
             <div className="grid grid-cols-12 items-center px-3.5 py-2">

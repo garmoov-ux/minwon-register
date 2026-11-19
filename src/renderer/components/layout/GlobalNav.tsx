@@ -8,10 +8,10 @@ import {
   Radio,
   Server,
   Settings,
-  Shield,
   UserCheck
 } from 'lucide-react'
 import { AuthSession, RestServerStatus } from '@shared/types/domain'
+import logoUrl from '../../assets/logo.svg'
 
 export type NavTabId =
   | 'ledger'
@@ -95,9 +95,9 @@ export const GlobalNav: React.FC<GlobalNavProps> = ({
           type="button"
           onClick={() => onSelectTab('about')}
           title="자치경찰 무인교통단속장비 민원접수대장 정보"
-          className="relative w-[50px] h-[36px] rounded-[8px] bg-[#0f172a] hover:bg-[#1e293b] border border-[#f59e0b]/70 flex flex-col items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer"
+          className="relative w-[50px] h-[42px] rounded-[8px] bg-[#0f172a] hover:bg-[#1e293b] border border-[#f59e0b]/70 flex flex-col items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer"
         >
-          <Shield className="w-3.5 h-3.5 text-[#f59e0b] mb-0.5" />
+          <img src={logoUrl} alt="자치경찰 로고" className="w-5 h-5 object-contain mb-0.5" />
           <span className="text-[9.5px] font-extrabold tracking-tight text-white leading-none">
             자치경찰
           </span>

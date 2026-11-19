@@ -8,7 +8,8 @@ import {
   Filter,
   RotateCcw,
   Search,
-  Trash2
+  Trash2,
+  X
 } from 'lucide-react'
 import {
   CodeCategory,
@@ -128,6 +129,18 @@ export const MinwonLedgerView: React.FC<MinwonLedgerViewProps> = ({
     reviewEndDate
   ])
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') {
+        setSelectedId(null)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  const selectedRecord = records.find((r) => r.id === selectedId) || null
+
   const handleApplyReceivedPeriod = (p: QuickDatePeriod): void => {
     setReceivedPeriod(p)
     const { startDate, endDate } = computeQuickDateRange(p)
@@ -173,7 +186,10 @@ export const MinwonLedgerView: React.FC<MinwonLedgerViewProps> = ({
   }
 
   return (
-    <div className="h-full p-3.5 w-full min-h-0 flex flex-col gap-2.5">
+    <div
+      className="h-full p-3.5 w-full min-h-0 flex flex-col gap-2.5"
+      onClick={() => setSelectedId(null)}
+    >
       {/* 상단 요약 카드 4종 + 우측 빠른 액션 버튼 */}
       <div className="grid grid-cols-12 gap-2.5 shrink-0">
         <div className="col-span-2 rounded-[9px] bg-white border border-[#cbd5e1] px-3.5 py-2 flex items-center justify-between">
@@ -422,16 +438,16 @@ export const MinwonLedgerView: React.FC<MinwonLedgerViewProps> = ({
         </div>
       </div>
 
-      {/* 단일 테두리 시트: 13개 필드 민원접수대장 고밀도 테이블 (세로 줄바꿈 깨짐 완벽 방지) */}
-      <div className="flex-1 min-h-0 bg-[#ffffff] border border-[#cbd5e1] rounded-[10px] overflow-hidden flex flex-col">
-        <div className="flex-1 min-h-0 overflow-auto">
+      {/* 단일 테두리 시트: 좌측 13개 필드 민원접수대장 테이블 + 우측 선택 시 열리는 속성:값 사이드패널 */}
+      <div className="flex-1 min-h-0 bg-[#ffffff] border border-[#cbd5e1] rounded-[10px] overflow-hidden flex">
+        <div className="flex-1 min-w-0 min-h-0 overflow-auto">
           <table className="w-full min-w-[1260px] table-fixed border-collapse text-left text-[12px]">
             <thead className="sticky top-0 z-10 bg-[#f1f5f9] text-[#334155] border-b border-[#cbd5e1] text-[11.5px] font-bold">
               <tr className="whitespace-nowrap">
                 <th className="py-2.5 px-2 text-center w-[48px]">연번</th>
                 <th className="py-2.5 px-2 text-center w-[92px]">접수일자</th>
                 <th className="py-2.5 px-2 text-center w-[96px]">접수구분</th>
-                <th className="py-2.5 px-2 text-center w-[76px]">접수번호</th>
+                <th className="py-2.5 px-2 text-center w-[92px]">접수번호</th>
                 <th className="py-2.5 px-2 text-center w-[88px]">이름</th>
                 <th className="py-2.5 px-2 text-center w-[112px]">연락처</th>
                 <th className="py-2.5 px-2.5 w-[210px]">위치</th>
@@ -464,9 +480,15 @@ export const MinwonLedgerView: React.FC<MinwonLedgerViewProps> = ({
                   return (
                     <tr
                       key={r.id}
-                      onClick={() => setSelectedId(r.id)}
-                      onDoubleClick={() => onSelectEdit(r)}
-                      title="더블클릭 시 상세 편집 화면으로 이동합니다"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setSelectedId((prev) => (prev === r.id ? null : r.id))
+                      }}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation()
+                        onSelectEdit(r)
+                      }}
+                      title="클릭 시 우측 상세 패널 열기 / 더블클릭 시 수정 화면 이동"
                       className={`h-[38px] transition-colors cursor-pointer whitespace-nowrap ${
                         isSelected
                           ? 'bg-[#eff6ff] font-semibold'
@@ -556,6 +578,113 @@ export const MinwonLedgerView: React.FC<MinwonLedgerViewProps> = ({
             </tbody>
           </table>
         </div>
+
+        {/* 우측: 데이터 선택 시 열리는 속성 : 값 상세 사이드패널 */}
+        {selectedRecord && (
+          <aside
+            onClick={(e) => e.stopPropagation()}
+            className="w-[360px] shrink-0 border-l border-[#cbd5e1] bg-[#f8fafc] flex flex-col h-full"
+          >
+            <div className="px-3.5 py-2.5 bg-[#090d16] text-white flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded-[5px] bg-[#2563eb] text-white text-[11px] font-extrabold">
+                  연번 #{selectedRecord.id}
+                </span>
+                <span className="text-[13px] font-bold">민원 상세 내역</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedId(null)}
+                title="사이드패널 닫기 (ESC)"
+                className="w-6 h-6 rounded-[5px] bg-[#1e293b] hover:bg-[#334155] text-slate-300 flex items-center justify-center cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <div className="flex-1 min-h-0 overflow-y-auto p-3">
+              <div className="rounded-[8px] border border-[#cbd5e1] bg-white divide-y divide-[#e2e8f0] text-[12px]">
+                {[
+                  { label: '연번', value: `#${selectedRecord.id}`, bold: true },
+                  { label: '접수일자', value: selectedRecord.receivedDate || '-' },
+                  { label: '접수구분', value: selectedRecord.receptionType || '-' },
+                  { label: '문서(접수)번호', value: selectedRecord.receptionNo || '-', accent: true },
+                  { label: '민원인 이름', value: selectedRecord.complainantName || '-', bold: true },
+                  { label: '연락처', value: selectedRecord.contact || '-' },
+                  { label: '구역구분', value: selectedRecord.zoneType || '일반구역' },
+                  { label: '위치', value: selectedRecord.location || '-', multiline: true },
+                  { label: '민원내용', value: selectedRecord.content || '-', multiline: true },
+                  { label: '공단 검토일자', value: selectedRecord.reviewDate || '-' },
+                  {
+                    label: '공단 검토결과',
+                    value: selectedRecord.reviewResult || '대기중',
+                    badge:
+                      RESULT_BADGE_MAP[selectedRecord.reviewResult] ||
+                      'bg-[#f8fafc] text-[#334155] border-[#cbd5e1]'
+                  },
+                  { label: '개선결과', value: selectedRecord.improvementResult || '-', multiline: true },
+                  { label: '비고', value: selectedRecord.note || '-', multiline: true }
+                ].map((row) => (
+                  <div key={row.label} className="grid grid-cols-12 px-3 py-2 items-start gap-1">
+                    <span className="col-span-4 text-[#64748b] font-semibold">
+                      {row.label}
+                    </span>
+                    <span className="col-span-1 text-center text-[#94a3b8]">:</span>
+                    <div className="col-span-7 text-[#0f172a] break-words whitespace-pre-wrap">
+                      {row.badge ? (
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded-[5px] border text-[11px] font-bold ${row.badge}`}
+                        >
+                          {row.value}
+                        </span>
+                      ) : (
+                        <span
+                          className={`${row.bold ? 'font-extrabold' : 'font-medium'} ${
+                            row.accent ? 'text-[#2563eb] font-bold' : ''
+                          }`}
+                        >
+                          {row.value}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="px-3 py-2.5 bg-white border-t border-[#cbd5e1] flex items-center justify-between gap-2 shrink-0">
+              <PillButton
+                variant="pearl-capsule"
+                size="sm"
+                onClick={() => setSelectedId(null)}
+              >
+                <X className="w-3.5 h-3.5 text-[#64748b]" />
+                <span>닫기</span>
+              </PillButton>
+
+              {canWrite && (
+                <div className="flex items-center gap-1.5">
+                  <PillButton
+                    variant="pearl-capsule"
+                    size="sm"
+                    onClick={() => void onDeleteRecord(selectedRecord.id)}
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-[#dc2626]" />
+                    <span className="text-[#dc2626]">삭제</span>
+                  </PillButton>
+                  <PillButton
+                    variant="primary"
+                    size="sm"
+                    onClick={() => onSelectEdit(selectedRecord)}
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                    <span>민원 수정</span>
+                  </PillButton>
+                </div>
+              )}
+            </div>
+          </aside>
+        )}
       </div>
     </div>
   )

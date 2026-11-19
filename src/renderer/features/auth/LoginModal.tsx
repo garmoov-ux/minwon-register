@@ -7,13 +7,13 @@ import {
   LogOut,
   Mail,
   Phone,
-  Shield,
   User,
   X
 } from 'lucide-react'
 import { AuthSession, USER_ROLE_LABELS, UserRole } from '@shared/types/domain'
 import { unifiedApiClient } from '../../services/api-client'
 import { PillButton } from '../../components/ui/PillButton'
+import logoUrl from '../../assets/logo.svg'
 
 interface LoginModalProps {
   open: boolean
@@ -122,8 +122,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         {/* 상단 자치경찰 네이비/골드 헤더 */}
         <div className="bg-[#090d16] text-white px-5 py-4 flex items-center justify-between border-b border-[#1e293b]">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-[8px] bg-[#1e293b] border border-[#f59e0b]/80 flex items-center justify-center">
-              <Shield className="w-4 h-4 text-[#f59e0b]" />
+            <div className="w-8 h-8 rounded-[8px] bg-[#1e293b] border border-[#f59e0b]/80 flex items-center justify-center p-1">
+              <img src={logoUrl} alt="자치경찰 로고" className="w-full h-full object-contain" />
             </div>
             <div>
               <h2 className="text-[14.5px] font-bold leading-tight">

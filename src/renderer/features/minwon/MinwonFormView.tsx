@@ -157,40 +157,48 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
   }
 
   /**
-   * 우측 기존 민원 카드 클릭 시: 신규 작성 중이면 위치/구역구분/민원내용 등을 현재 폼으로 가져오고,
-   *[이 민원 수정] 버튼을 누르면 해당 연번의 수정 모드로 전환한다.
+   * 우측 기존 민원 카드 클릭 시: 연번, 접수일자, 문서(접수)번호, 이름, 연락처, 위치, 구역구분,
+   * 민원내용, 검토일자, 검토결과, 개선결과, 비고 등 13개 전체 필드를 좌측 폼에 즉시 반영한다.
    */
-  const handleCopyFromExisting = (rec: MinwonRecord): void => {
-    setSelectedRefId(rec.id)
-    setLocation(rec.location)
-    setZoneType(rec.zoneType || '일반구역')
-    setContent(rec.content)
-    if (rec.receptionType) setReceptionType(rec.receptionType)
-    if (!note.includes(`#${rec.id}`)) {
-      setNote((prev) =>
-        prev
-          ? `${prev} / 기존민원 참조(#${rec.id} ${rec.receivedDate} ${rec.reviewResult})`
-          : `기존민원 참조(#${rec.id} ${rec.receivedDate} ${rec.reviewResult})`
-      )
-    }
-  }
-
-  const handleSwitchToEdit = (rec: MinwonRecord): void => {
+  const handleSelectExistingRecord = (rec: MinwonRecord): void => {
     setEditingTarget(rec)
     setSelectedRefId(rec.id)
     setId(rec.id)
-    setReceivedDate(rec.receivedDate)
-    setReceptionType(rec.receptionType)
-    setReceptionNo(rec.receptionNo)
-    setComplainantName(rec.complainantName)
-    setContact(rec.contact)
-    setLocation(rec.location)
-    setZoneType(rec.zoneType)
-    setContent(rec.content)
-    setReviewDate(rec.reviewDate)
-    setReviewResult(rec.reviewResult)
-    setImprovementResult(rec.improvementResult)
-    setNote(rec.note)
+    setReceivedDate(rec.receivedDate || todayStr)
+    setReceptionType(rec.receptionType || '국민신문고')
+    setReceptionNo(
+      rec.receptionNo || generateJspdDocumentNo(rec.receivedDate || todayStr, allMinwonRecords)
+    )
+    setComplainantName(rec.complainantName || '')
+    setContact(rec.contact || '')
+    setLocation(rec.location || '')
+    setZoneType(rec.zoneType || '일반구역')
+    setContent(rec.content || '')
+    setReviewDate(rec.reviewDate || '')
+    setReviewResult(rec.reviewResult || '대기중')
+    setImprovementResult(rec.improvementResult || '')
+    setNote(rec.note || '')
+  }
+
+  /**
+   * 선택한 기존 민원의 내용을 그대로 가져오되, 신규 등록용 연번과 JSPD 문서번호로 채번한다.
+   */
+  const handleCloneAsNew = (rec: MinwonRecord): void => {
+    setEditingTarget(null)
+    setSelectedRefId(rec.id)
+    setId(nextSuggestedId)
+    setReceivedDate(todayStr)
+    setReceptionType(rec.receptionType || '국민신문고')
+    setReceptionNo(generateJspdDocumentNo(todayStr, allMinwonRecords))
+    setComplainantName(rec.complainantName || '')
+    setContact(rec.contact || '')
+    setLocation(rec.location || '')
+    setZoneType(rec.zoneType || '일반구역')
+    setContent(rec.content || '')
+    setReviewDate('')
+    setReviewResult('대기중')
+    setImprovementResult('')
+    setNote(rec.note || '')
   }
 
   const savePayload = async (stayAndNew: boolean): Promise<void> => {
@@ -316,8 +324,7 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
                       type="number"
                       value={id}
                       onChange={(e) => setId(Number(e.target.value))}
-                      disabled={Boolean(editingTarget)}
-                      className="w-full h-[32px] px-2 rounded-[6px] border border-[#cbd5e1] bg-white text-[12.5px] font-bold text-[#0f172a] disabled:bg-[#e2e8f0] text-center"
+                      className="w-full h-[32px] px-1.5 rounded-[6px] border border-[#cbd5e1] bg-white text-[12.5px] font-bold text-[#0f172a] text-center"
                     />
                   </div>
 
@@ -650,7 +657,7 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
               return (
                 <div
                   key={rec.id}
-                  onClick={() => handleCopyFromExisting(rec)}
+                  onClick={() => handleSelectExistingRecord(rec)}
                   className={`w-full text-left rounded-[8px] border p-2.5 transition-all cursor-pointer ${
                     isSelected
                       ? 'bg-[#eff6ff] border-[#2563eb]'
@@ -668,6 +675,11 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
                       <span className="px-1.5 py-0.5 rounded-[4px] bg-white border border-[#cbd5e1] text-[10.5px] font-semibold text-[#334155]">
                         {rec.receptionType}
                       </span>
+                      {rec.receptionNo && (
+                        <span className="text-[10.5px] font-bold text-[#2563eb] truncate">
+                          [{rec.receptionNo}]
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       <span className="px-1.5 py-0.5 rounded-[4px] bg-[#fef3c7] text-[#b45309] text-[10.5px] font-bold">
@@ -705,21 +717,21 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
-                        onClick={() => handleCopyFromExisting(rec)}
+                        onClick={() => handleSelectExistingRecord(rec)}
                         className="px-2 py-0.5 rounded-[4px] bg-white hover:bg-[#eff6ff] border border-[#cbd5e1] text-[#2563eb] font-bold inline-flex items-center gap-0.5 cursor-pointer"
-                        title="위치·구역구분·민원내용을 신규 작성 폼으로 가져오기"
+                        title="연번·문서번호를 포함한 13개 전체 값을 좌측 폼에 불러오기"
                       >
-                        <Copy className="w-2.5 h-2.5" />
-                        <span>값 가져오기</span>
+                        <Edit3 className="w-2.5 h-2.5" />
+                        <span>전체 불러오기</span>
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleSwitchToEdit(rec)}
+                        onClick={() => handleCloneAsNew(rec)}
                         className="px-2 py-0.5 rounded-[4px] bg-white hover:bg-[#f1f5f9] border border-[#cbd5e1] text-[#334155] font-bold inline-flex items-center gap-0.5 cursor-pointer"
-                        title="이 민원 내역 자체를 수정 모드로 열기"
+                        title="내용은 가져오고 연번·문서번호는 신규 등록용으로 자동 채번"
                       >
-                        <Edit3 className="w-2.5 h-2.5" />
-                        <span>바로 수정</span>
+                        <Copy className="w-2.5 h-2.5" />
+                        <span>신규로 복제</span>
                       </button>
                     </div>
                   </div>
