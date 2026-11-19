@@ -123,17 +123,71 @@ export const unifiedApiClient = {
   },
 
   async login(payload: LoginPayload): Promise<ActionResult<AuthSession>> {
-    if (!shouldUseRestApi() && window.minwonApi) {
-      const res = await window.minwonApi.login(payload)
+    // 1. 웹 브라우저에서 직접 서버에 접속한 경우: 항상 해당 서버 REST API로 로그인
+    if (!isElectronEnvironment()) {
+      const res = await fetchJson<AuthSession>('/api/v1/auth/login', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      })
       if (res.ok && res.data) saveAuthSession(res.data)
       return res
     }
+
+    // 2. 데스크톱 프로그램에서 로그인 시: 접속 모드 선택 없이 자동 탐색 및 권한별 스마트 라우팅
+    if (window.minwonApi) {
+      // 사내망에 이미 켜져 있는 다중 접속 서버가 있는지 자동 탐색 (0.7초)
+      const discovered = await window.minwonApi.discoverServers()
+      if (discovered.length > 0) {
+        const remoteTargetUrl = discovered[0].url
+        try {
+          const remoteRes = await fetch(`${remoteTargetUrl}/api/v1/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          })
+          const remoteData = (await remoteRes.json()) as ActionResult<AuthSession>
+          if (remoteData.ok && remoteData.data) {
+            const role = remoteData.data.user.role
+            const snap = await window.minwonApi.getSnapshot()
+            const isLocalHostServer = snap.serverStatus.running
+
+            // 일반 사용자(USER)이거나 다른 PC가 서버를 호스팅 중이면 자동으로 해당 원격 서버에 연결
+            if (role === 'USER' || !isLocalHostServer) {
+              setClientConnectionConfig('REMOTE', remoteTargetUrl)
+              saveAuthSession(remoteData.data)
+              return {
+                ...remoteData,
+                message: `${remoteData.data.user.displayName}님 다중 접속 서버(${discovered[0].serverName})에 자동 연결되었습니다.`
+              }
+            }
+          }
+        } catch {
+          // 원격 탐색 서버 접속 실패 시 로컬 로그인으로 폴백
+        }
+      }
+
+      // 로컬 대장 로그인 (최고관리자 / 지정 관리자 / 로컬 단독 사용)
+      setClientConnectionConfig('LOCAL', 'http://127.0.0.1:8090')
+      const localRes = await window.minwonApi.login(payload)
+      if (localRes.ok && localRes.data) {
+        saveAuthSession(localRes.data)
+      }
+      return localRes
+    }
+
     const res = await fetchJson<AuthSession>('/api/v1/auth/login', {
       method: 'POST',
       body: JSON.stringify(payload)
     })
     if (res.ok && res.data) saveAuthSession(res.data)
     return res
+  },
+
+  async discoverServers() {
+    if (window.minwonApi) {
+      return window.minwonApi.discoverServers()
+    }
+    return []
   },
 
   async logout(): Promise<ActionResult> {
@@ -318,9 +372,9 @@ export const unifiedApiClient = {
     })
   },
 
-  async toggleServer(enabled: boolean, port?: number): Promise<ActionResult> {
+  async toggleServer(enabled: boolean, port?: number, host?: string): Promise<ActionResult> {
     if (window.minwonApi) {
-      return window.minwonApi.toggleServer({ enabled, port })
+      return window.minwonApi.toggleServer({ enabled, port, host })
     }
     return { ok: false, message: '서버 시작/중지는 메인 호스트 프로그램에서만 제어할 수 있습니다.' }
   },

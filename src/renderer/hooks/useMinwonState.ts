@@ -107,8 +107,8 @@ export function useMinwonState() {
   )
 
   const toggleServer = useCallback(
-    async (enabled: boolean, port?: number): Promise<void> => {
-      const res = await unifiedApiClient.toggleServer(enabled, port)
+    async (enabled: boolean, port?: number, host?: string): Promise<void> => {
+      const res = await unifiedApiClient.toggleServer(enabled, port, host)
       showToast(res.message)
       await refreshSnapshot()
     },

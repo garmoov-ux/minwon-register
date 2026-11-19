@@ -32,6 +32,7 @@ import {
   exportMinwonRecordsToExcel
 } from '../excel/excel-service'
 import { EmbeddedRestServer } from '../server/rest-server'
+import { discoverLanMinwonServers } from '../server/lan-discovery'
 
 export interface IpcContext {
   db: Database
@@ -493,7 +494,10 @@ export function registerIpcHandlers(ctx: IpcContext): void {
   // 6. 내장 다중 접속 서버 On/Off 제어 (최고관리자 또는 지정된 관리자 1명만 허용!)
   ipcMain.handle(
     IPC_CHANNELS.SERVER_TOGGLE,
-    async (_e, params: { enabled: boolean; port?: number }): Promise<ActionResult> => {
+    async (
+      _e,
+      params: { enabled: boolean; port?: number; host?: string }
+    ): Promise<ActionResult> => {
       const currentCfg = ctx.getConfig()
       const actor = ctx.getCurrentUser()
 
@@ -505,16 +509,18 @@ export function registerIpcHandlers(ctx: IpcContext): void {
       }
 
       const targetPort = params.port || currentCfg.server.port
+      const targetHost = params.host || currentCfg.server.host || '0.0.0.0'
 
       try {
         if (params.enabled) {
-          const status = await ctx.restServer.start(targetPort, currentCfg.server.host)
+          const status = await ctx.restServer.start(targetPort, targetHost)
           const updated = saveConfigAtomic({
             ...currentCfg,
             server: {
               ...currentCfg.server,
               enabled: true,
-              port: targetPort
+              port: targetPort,
+              host: targetHost
             }
           })
           ctx.setConfig(updated)
@@ -523,13 +529,13 @@ export function registerIpcHandlers(ctx: IpcContext): void {
             username: getActorName(),
             action: '다중 접속 서버 시작',
             targetType: '서버제어',
-            targetId: String(targetPort),
+            targetId: `${targetHost}:${targetPort}`,
             detail: `다중 접속 서버 기동 (${status.urls.join(', ')})`
           })
           ctx.broadcastUpdate()
           return {
             ok: true,
-            message: `다중 접속 서버가 시작되었습니다 (${status.urls[0]}). 다른 사용자도 접속할 수 있습니다.`
+            message: `다중 접속 서버가 시작되었습니다 (${status.urls[0]}). 다른 사용자도 자동 탐색으로 즉시 접속할 수 있습니다.`
           }
         } else {
           await ctx.restServer.stop()
@@ -537,7 +543,8 @@ export function registerIpcHandlers(ctx: IpcContext): void {
             ...currentCfg,
             server: {
               ...currentCfg.server,
-              enabled: false
+              enabled: false,
+              host: targetHost
             }
           })
           ctx.setConfig(updated)
@@ -563,6 +570,11 @@ export function registerIpcHandlers(ctx: IpcContext): void {
       }
     }
   )
+
+  ipcMain.handle(IPC_CHANNELS.SERVER_DISCOVER, async () => {
+    const currentCfg = ctx.getConfig()
+    return discoverLanMinwonServers(currentCfg.server.port)
+  })
 
   ipcMain.handle(
     IPC_CHANNELS.CONFIG_UPDATE,

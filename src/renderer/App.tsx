@@ -69,6 +69,7 @@ export const App: React.FC = () => {
       port: 8090,
       host: '0.0.0.0',
       urls: [],
+      adapters: [],
       activeConnections: 0,
       startedAt: null,
       totalRequests: 0,
