@@ -387,7 +387,7 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
                     username: '',
                     password: '',
                     displayName: '',
-                    jobTitle: '주무관',
+                    jobTitle: '',
                     email: '',
                     contact: '',
                     role: 'USER',
