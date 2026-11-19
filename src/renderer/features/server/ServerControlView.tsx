@@ -43,8 +43,8 @@ interface ServerControlViewProps {
 
 const ROLE_DESCRIPTION: Record<UserRole, string> = {
   SUPER_ADMIN: '최고관리자 (서버 제어 · 관리자 지정 · 전체 관리)',
-  ADMIN: '관리자 (지정된 1명 서버 켜기/끄기 가능 · 대장/장비 관리)',
-  USER: '사용자 (민원접수대장 등록/수정/조회 및 엑셀 출력)'
+  ADMIN: '관리자 (지정된 1명 서버 켜기/끄기 가능)',
+  USER: '사용자 (민원접수대장 등록/수정/조회)'
 }
 
 export const ServerControlView: React.FC<ServerControlViewProps> = ({
@@ -110,58 +110,46 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
       {/* 좌측 6컬럼: 다중 사용자 접속 서버 제어판 */}
       <div className="col-span-6 min-h-0 flex flex-col gap-3">
         <UtilityCard
-          title="다중 사용자 접속 서버 제어판"
+          title="다중 접속 서버 제어"
           badge={<Server className="w-3.5 h-3.5 text-[#2563eb]" />}
+          rightAction={
+            <span
+              className={`px-2 py-0.5 rounded-[5px] text-[10.5px] font-bold ${
+                canControlServer
+                  ? 'bg-[#ecfdf5] text-[#047857] border border-[#a7f3d0]'
+                  : 'bg-[#fef2f2] text-[#dc2626] border border-[#fecaca]'
+              }`}
+            >
+              {canControlServer ? '서버 제어 가능' : '서버 제어 권한 없음'}
+            </span>
+          }
           className="shrink-0"
         >
-          <div className="space-y-3">
-            {/* 서버 가동 권한 안내 배너 */}
-            <div className="rounded-[8px] bg-[#f1f5f9] border border-[#cbd5e1] px-3 py-2 flex items-center justify-between text-[11.5px]">
-              <span className="font-semibold text-[#334155]">
-                서버 켜기 허용 계정: <strong className="text-[#0f172a]">최고관리자(admin)</strong> 및{' '}
-                <strong className="text-[#2563eb]">
-                  지정 관리자 1명(
-                  {designatedAdminUser
-                    ? `${designatedAdminUser.displayName} · ${designatedAdminUser.username}`
-                    : config.server.designatedAdminUsername}
-                  )
-                </strong>
-              </span>
-              <span
-                className={`px-2 py-0.5 rounded-[5px] text-[10.5px] font-bold ${
-                  canControlServer
-                    ? 'bg-[#ecfdf5] text-[#047857] border border-[#a7f3d0]'
-                    : 'bg-[#fef2f2] text-[#dc2626] border border-[#fecaca]'
-                }`}
-              >
-                {canControlServer ? '서버 제어 권한 있음' : '서버 제어 권한 없음'}
-              </span>
-            </div>
-
+          <div className="space-y-2.5">
             <div
-              className={`rounded-[10px] border p-3.5 flex items-center justify-between ${
+              className={`rounded-[10px] border p-3 flex items-center justify-between gap-3 ${
                 serverStatus.running
                   ? 'bg-[#ecfdf5] border-[#34d399]'
                   : 'bg-[#f8fafc] border-[#cbd5e1]'
               }`}
             >
-              <div className="space-y-0.5">
+              <div className="space-y-0.5 min-w-0">
                 <div className="flex items-center gap-2">
                   <span
-                    className={`w-2.5 h-2.5 rounded-full ${
+                    className={`w-2.5 h-2.5 rounded-full shrink-0 ${
                       serverStatus.running ? 'bg-[#10b981] animate-pulse' : 'bg-[#64748b]'
                     }`}
                   />
-                  <span className="text-[14px] font-extrabold text-[#0f172a]">
+                  <span className="text-[13.5px] font-extrabold text-[#0f172a] whitespace-nowrap">
                     {serverStatus.running
-                      ? `다중 접속 서버 가동 중 (포트 ${serverStatus.port})`
-                      : '다중 접속 서버 중지됨 (단독 로컬 모드)'}
+                      ? `서버 가동 중 (포트 ${serverStatus.port})`
+                      : '서버 중지됨 (로컬 모드)'}
                   </span>
                 </div>
-                <p className="text-[11.5px] text-[#475569]">
-                  {serverStatus.running
-                    ? '같은 네트워크(사내망)의 다른 컴퓨터에서 아래 주소로 접속하여 민원접수대장을 실시간 함께 사용할 수 있습니다.'
-                    : '서버 기능을 켜면 다른 컴퓨터 사용자들이 웹 브라우저나 프로그램으로 동시 접속할 수 있습니다.'}
+                <p className="text-[11.5px] text-[#475569] truncate">
+                  서버 허용: 최고관리자(admin) · 지정 관리자(
+                  {designatedAdminUser ? designatedAdminUser.displayName : config.server.designatedAdminUsername}
+                  )
                 </p>
               </div>
 
@@ -171,8 +159,8 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
                   value={portInput}
                   onChange={(e) => setPortInput(Number(e.target.value))}
                   disabled={serverStatus.running || !canControlServer}
-                  className="w-[74px] h-[32px] px-2 rounded-[6px] border border-[#cbd5e1] bg-white text-center font-bold text-[12.5px] disabled:bg-[#e2e8f0]"
-                  title="서버 포트 번호 (기본 8090)"
+                  className="w-[72px] h-[32px] px-2 rounded-[6px] border border-[#cbd5e1] bg-white text-center font-bold text-[12.5px] disabled:bg-[#e2e8f0]"
+                  title="서버 포트 번호"
                 />
                 {serverStatus.running ? (
                   <PillButton
@@ -181,7 +169,7 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
                     onClick={() => void onToggleServer(false, portInput)}
                   >
                     <Square className="w-3.5 h-3.5 text-[#f59e0b]" />
-                    <span>서버 기능 끄기</span>
+                    <span>서버 끄기</span>
                   </PillButton>
                 ) : (
                   <PillButton
@@ -190,21 +178,21 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
                     onClick={() => void onToggleServer(true, portInput)}
                   >
                     <Play className="w-3.5 h-3.5" />
-                    <span>서버 기능 켜기</span>
+                    <span>서버 켜기</span>
                   </PillButton>
                 )}
               </div>
             </div>
 
-            {/* 접속 주소 목록 */}
+            {/* 접속 주소 및 원격 권한 */}
             <div className="rounded-[9px] border border-[#cbd5e1] bg-[#f8fafc] p-3 space-y-2">
               <div className="flex items-center justify-between text-[12px]">
                 <span className="font-bold text-[#0f172a] inline-flex items-center gap-1.5">
                   <Globe className="w-3.5 h-3.5 text-[#2563eb]" />
-                  다른 사용자 접속 주소 안내
+                  접속 주소
                 </span>
                 <span className="text-[11px] text-[#64748b]">
-                  실시간 연결: {serverStatus.activeConnections}명 · 누적 요청:{' '}
+                  연결 {serverStatus.activeConnections}명 · 요청{' '}
                   {serverStatus.totalRequests.toLocaleString()}회
                 </span>
               </div>
@@ -223,22 +211,20 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
                         className="px-2 py-0.5 rounded-[5px] bg-[#eff6ff] hover:bg-[#dbeafe] text-[#1d4ed8] text-[11px] font-semibold inline-flex items-center gap-1 cursor-pointer"
                       >
                         <Copy className="w-3 h-3" />
-                        <span>주소 복사</span>
+                        <span>복사</span>
                       </button>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-[12px] text-[#64748b] py-1.5">
-                  [서버 기능 켜기] 버튼을 누르면 사내망 다른 컴퓨터에서 접속할 수 있는 주소가 표시됩니다.
+                <div className="text-[11.5px] text-[#64748b] py-1">
+                  서버를 켜면 다른 컴퓨터 접속 주소가 표시됩니다.
                 </div>
               )}
 
               {/* 서버 옵션 스위치 */}
               <div className="pt-2 border-t border-[#e2e8f0] flex items-center justify-between text-[12px]">
-                <span className="font-medium text-[#334155]">
-                  원격 접속 사용자의 민원 등록·수정 허용 여부
-                </span>
+                <span className="font-medium text-[#334155]">원격 접속 권한</span>
                 <div className="inline-flex rounded-[6px] border border-[#cbd5e1] bg-white p-0.5">
                   <button
                     type="button"
@@ -280,7 +266,7 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
           </div>
         </UtilityCard>
 
-        {/* 감사 기록 (누가 언제 로그인/민원 등록·수정했는지 추적) */}
+        {/* 감사 기록 */}
         <UtilityCard
           title="사용자 접속 및 작업 기록"
           badge={<Shield className="w-3.5 h-3.5 text-[#2563eb]" />}
@@ -290,9 +276,9 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
           <table className="w-full border-collapse text-left text-[11.5px]">
             <thead className="sticky top-0 bg-[#f1f5f9] text-[#334155] border-b border-[#cbd5e1] font-bold">
               <tr>
-                <th className="py-1.5 px-2 w-[135px]">시각</th>
-                <th className="py-1.5 px-2 w-[70px]">아이디</th>
-                <th className="py-1.5 px-2 w-[95px]">작업 구분</th>
+                <th className="py-1.5 px-2 w-[140px]">시각</th>
+                <th className="py-1.5 px-2 w-[72px]">아이디</th>
+                <th className="py-1.5 px-2 w-[100px]">작업 구분</th>
                 <th className="py-1.5 px-2">상세 내역</th>
               </tr>
             </thead>
@@ -304,7 +290,7 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
                   </td>
                   <td className="py-1.5 px-2 font-bold text-[#0f172a]">{log.username}</td>
                   <td className="py-1.5 px-2 font-semibold text-[#2563eb]">{log.action}</td>
-                  <td className="py-1.5 px-2 text-[#334155] truncate max-w-[200px]" title={log.detail}>
+                  <td className="py-1.5 px-2 text-[#334155] truncate max-w-[240px]" title={log.detail}>
                     {log.detail}
                   </td>
                 </tr>
@@ -314,7 +300,7 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
         </UtilityCard>
       </div>
 
-      {/* 우측 6컬럼: 사용자 계정(최고관리자 / 관리자 / 사용자) 및 서버 구동 관리자(1명) 지정 */}
+      {/* 우측 6컬럼: 사용자 계정 관리 */}
       <div className="col-span-6 min-h-0 flex flex-col">
         <UtilityCard
           title="사용자 계정 관리 (최고관리자 · 관리자 · 사용자)"
@@ -346,10 +332,6 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
           className="flex-1 min-h-0"
           bodyClassName="overflow-y-auto space-y-2 pr-1"
         >
-          <div className="text-[11.5px] text-[#64748b] mb-1">
-            최고관리자 외에 <strong className="text-[#2563eb]">지정된 관리자 1명</strong>만 다중 접속 서버 기능을 켤 수 있습니다.
-          </div>
-
           {users.map((u) => {
             const isDesignatedServerAdmin =
               u.role === 'ADMIN' &&
@@ -366,13 +348,13 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
                       : 'bg-[#f8fafc] border-[#cbd5e1]'
                 }`}
               >
-                <div className="space-y-1 min-w-0 flex-1">
+                <div className="space-y-1.5 min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="text-[13.5px] font-extrabold text-[#0f172a]">
                       {u.displayName}
                     </span>
                     <span className="px-2 py-0.5 rounded-[5px] bg-white border border-[#cbd5e1] text-[11px] font-bold text-[#334155]">
-                      아이디: {u.username}
+                      {u.username}
                     </span>
                     <span
                       className={`px-2 py-0.5 rounded-[5px] text-[11px] font-bold ${
@@ -388,69 +370,68 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
                     {(u.role === 'SUPER_ADMIN' || isDesignatedServerAdmin) && (
                       <span className="px-2 py-0.5 rounded-[5px] bg-[#064e3b] text-[#34d399] text-[10.5px] font-bold inline-flex items-center gap-1">
                         <CheckCircle2 className="w-3 h-3" />
-                        서버 켜기 허용 계정
+                        서버 허용
                       </span>
                     )}
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 text-[11.5px] text-[#475569] pt-0.5">
-                    <span className="inline-flex items-center gap-1 truncate">
-                      <Briefcase className="w-3 h-3 text-[#64748b] shrink-0" />
-                      직책: <strong className="text-[#0f172a]">{u.jobTitle || '-'}</strong>
+                  {/* 직책, 연락처, 이메일이 잘리지 않도록 여유 있게 배치 */}
+                  <div className="flex items-center gap-3 flex-wrap text-[11.5px] text-[#475569]">
+                    <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                      <Briefcase className="w-3 h-3 text-[#64748b]" />
+                      <strong className="text-[#0f172a]">{u.jobTitle || '-'}</strong>
                     </span>
-                    <span className="inline-flex items-center gap-1 truncate">
-                      <Phone className="w-3 h-3 text-[#64748b] shrink-0" />
+                    <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                      <Phone className="w-3 h-3 text-[#64748b]" />
                       {u.contact || '-'}
                     </span>
                     <span className="inline-flex items-center gap-1 truncate" title={u.email}>
-                      <Mail className="w-3 h-3 text-[#64748b] shrink-0" />
+                      <Mail className="w-3 h-3 text-[#64748b]" />
                       {u.email || '-'}
                     </span>
                   </div>
                 </div>
 
                 {canManageUsers && (
-                  <div className="flex flex-col items-end gap-1.5 shrink-0">
-                    <div className="flex items-center gap-1">
-                      {isSuperAdmin && u.username !== 'admin' && !isDesignatedServerAdmin && (
-                        <PillButton
-                          variant="secondary-pill"
-                          size="sm"
-                          onClick={() => void handleDesignateServerAdmin(u.username)}
-                        >
-                          서버 관리자로 지정
-                        </PillButton>
-                      )}
+                  <div className="flex items-center gap-1 shrink-0">
+                    {isSuperAdmin && u.username !== 'admin' && !isDesignatedServerAdmin && (
                       <PillButton
-                        variant="pearl-capsule"
+                        variant="secondary-pill"
                         size="sm"
-                        onClick={() =>
-                          setEditingUser({
-                            username: u.username,
-                            password: '',
-                            displayName: u.displayName,
-                            jobTitle: u.jobTitle,
-                            email: u.email,
-                            contact: u.contact,
-                            role: u.role,
-                            canToggleServer: u.canToggleServer,
-                            active: u.active
-                          })
-                        }
+                        onClick={() => void handleDesignateServerAdmin(u.username)}
                       >
-                        정보 수정
+                        서버 관리자 지정
                       </PillButton>
-                      {isSuperAdmin && u.username !== 'admin' && (
-                        <button
-                          type="button"
-                          onClick={() => void handleDeleteUser(u.username)}
-                          className="p-1.5 rounded-[6px] bg-[#fef2f2] hover:bg-[#fee2e2] text-[#dc2626] cursor-pointer"
-                          title="계정 삭제"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
+                    )}
+                    <PillButton
+                      variant="pearl-capsule"
+                      size="sm"
+                      onClick={() =>
+                        setEditingUser({
+                          username: u.username,
+                          password: '',
+                          displayName: u.displayName,
+                          jobTitle: u.jobTitle,
+                          email: u.email,
+                          contact: u.contact,
+                          role: u.role,
+                          canToggleServer: u.canToggleServer,
+                          active: u.active
+                        })
+                      }
+                    >
+                      수정
+                    </PillButton>
+                    {isSuperAdmin && u.username !== 'admin' && (
+                      <button
+                        type="button"
+                        onClick={() => void handleDeleteUser(u.username)}
+                        className="p-1.5 rounded-[6px] bg-[#fef2f2] hover:bg-[#fee2e2] text-[#dc2626] cursor-pointer"
+                        title="계정 삭제"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -459,7 +440,7 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
         </UtilityCard>
       </div>
 
-      {/* 사용자 계정 등록/수정 모달 (아이디, 비밀번호, 이름, 직책, 이메일, 연락처, 등급) */}
+      {/* 사용자 계정 등록/수정 모달 */}
       {editingUser && (
         <div className="fixed inset-0 z-50 bg-[#090d16]/60 flex items-center justify-center p-4">
           <div className="w-[460px] rounded-[12px] bg-white border border-[#cbd5e1] p-4 space-y-3 apple-product-shadow">
@@ -572,11 +553,6 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
                   <option value="ADMIN">{ROLE_DESCRIPTION.ADMIN}</option>
                   <option value="USER">{ROLE_DESCRIPTION.USER}</option>
                 </select>
-                {editingUser.role === 'ADMIN' && (
-                  <p className="text-[11px] text-[#2563eb] mt-1 font-medium">
-                    * 관리자로 저장하면 이 계정이 서버 기능을 켤 수 있는 지정 관리자(1명)로 자동 설정됩니다.
-                  </p>
-                )}
               </div>
 
               <div className="pt-2 flex justify-end gap-2">

@@ -94,12 +94,14 @@ if (!gotSingleInstanceLock) {
     const appIcon = createMinwonAppIcon(64)
 
     mainWindow = new BrowserWindow({
-      width: 1180,
-      height: 740,
+      width: 1440,
+      height: 860,
+      minWidth: 1280,
+      minHeight: 740,
       useContentSize: true,
-      resizable: false,
-      maximizable: false,
-      fullscreenable: false,
+      resizable: true,
+      maximizable: true,
+      fullscreenable: true,
       show: !config.system.startMinimized,
       autoHideMenuBar: true,
       backgroundColor: '#f1f5f9',

@@ -6,8 +6,8 @@ trigger: always_on
 
 프론트엔드(`src/renderer/`)의 모든 화면과 컴포넌트는 `atoj` / `systemcheck` / `process-monitor`와 동일한 패밀리 룩 규격을 엄격히 준수한다.
 
-## 1. 콤팩트 고정 뷰포트 및 좌측 다크 아이콘 사이드바 레이아웃
-- **창 크기**: **`1180 x 740`** (`useContentSize: true`, 최소 `1040 x 680`)을 기본 창 크기로 사용하여 13개 민원접수대장 컬럼과 검색 조건이 답답함 없이 한눈에 들어오도록 구성한다.
+## 1. 반응형 리사이즈 뷰포트 및 좌측 다크 아이콘 사이드바 레이아웃
+- **창 크기**: 기본 **`1440 x 860`** (`minWidth: 1280`, `minHeight: 740`, `resizable: true`, `maximizable: true`)을 사용하여 최소 창 크기부터 최대화/전체화면까지 자유롭게 조절 가능하며 13개 민원접수대장 컬럼이 줄바꿈 깨짐 없이 한눈에 들어오도록 구성한다.
 - **전체 페이지 스크롤 금지**: 최상위 레이아웃은 `h-screen w-screen overflow-hidden flex bg-[#f1f5f9] text-[#0f172a] select-none`으로 고정하며, 테이블/목록 영역만 내부 스크롤(`flex-1 min-h-0 overflow-y-auto`)한다.
 - **좌측 다크 아이콘 사이드바 (`GlobalNav.tsx`, `w-[64px] bg-[#090d16]`)**:
   - 상단: `민원` 브랜드 배지(`MinWon`) + 다중 접속 REST API 서버 상태 표시등(초록 펄스: 서버 가동 중 / 슬레이트: 단독 로컬 모드)

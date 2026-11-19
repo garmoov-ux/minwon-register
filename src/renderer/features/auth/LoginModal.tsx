@@ -25,7 +25,6 @@ interface LoginModalProps {
   open: boolean
   session: AuthSession | null
   requireLogin: boolean
-  designatedAdminUsername: string
   onClose: () => void
   onLoginSuccess: (session: AuthSession, message: string) => void
   onLogout: () => void
@@ -51,7 +50,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   open,
   session,
   requireLogin,
-  designatedAdminUsername,
   onClose,
   onLoginSuccess,
   onLogout,
@@ -61,7 +59,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [connMode, setConnMode] = useState<'LOCAL' | 'REMOTE'>(initialConn.mode)
   const [remoteUrl, setRemoteUrl] = useState<string>(initialConn.remoteServerUrl)
 
-  const [username, setUsername] = useState<string>(session?.user.username || 'admin')
+  const [username, setUsername] = useState<string>(session?.user.username || '')
   const [password, setPassword] = useState<string>('')
   const [errorMsg, setErrorMsg] = useState<string>('')
   const [submitting, setSubmitting] = useState<boolean>(false)
@@ -74,12 +72,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   if (!open) return null
 
   const canClose = Boolean(session) || !requireLogin
-
-  const handleQuickFill = (u: string, p: string): void => {
-    setUsername(u)
-    setPassword(p)
-    setErrorMsg('')
-  }
 
   const handleLoginSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault()
@@ -136,7 +128,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-[#090d16]/65 backdrop-blur-xs flex items-center justify-center p-4 select-none">
-      <div className="w-[450px] rounded-[14px] bg-[#ffffff] border border-[#cbd5e1] overflow-hidden apple-product-shadow">
+      <div className="w-[430px] rounded-[14px] bg-[#ffffff] border border-[#cbd5e1] overflow-hidden apple-product-shadow">
         {/* 상단 자치경찰 네이비/골드 헤더 */}
         <div className="bg-[#090d16] text-white px-5 py-4 flex items-center justify-between border-b border-[#1e293b]">
           <div className="flex items-center gap-2.5">
@@ -164,7 +156,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         </div>
 
         <div className="p-5 space-y-4">
-          {/* 이미 로그인된 상태일 때 현재 로그인 사용자 상세 정보 카드 (아이디, 이름, 직책, 이메일, 연락처) */}
+          {/* 이미 로그인된 상태일 때 현재 로그인 사용자 상세 정보 카드 */}
           {session && !changingPw && (
             <div className="rounded-[10px] border border-[#cbd5e1] bg-[#f8fafc] p-3.5 space-y-2.5">
               <div className="flex items-center justify-between">
@@ -364,39 +356,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                     placeholder="비밀번호 입력"
                     className="w-full h-[36px] pl-8.5 pr-3 rounded-[7px] border border-[#cbd5e1] bg-[#f8fafc] focus:bg-white text-[13px] text-[#0f172a] focus:outline-2 focus:outline-[#2563eb]"
                   />
-                </div>
-              </div>
-
-              {/* 빠른 기본 계정 자동입력 도우미 */}
-              <div className="rounded-[8px] bg-[#f1f5f9] border border-[#e2e8f0] p-2.5 space-y-1.5 text-[11px] text-[#475569]">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-[#334155]">빠른 계정 선택:</span>
-                  <span className="text-[10.5px] text-[#64748b]">
-                    * 서버 켜기 권한: 최고관리자 및 지정 관리자({designatedAdminUsername})
-                  </span>
-                </div>
-                <div className="grid grid-cols-3 gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => handleQuickFill('admin', 'admin1234')}
-                    className="py-1 px-2 rounded-[5px] bg-white hover:bg-[#fef3c7] border border-[#cbd5e1] text-[#b45309] font-bold cursor-pointer text-center"
-                  >
-                    최고관리자
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleQuickFill('manager', 'manager1234')}
-                    className="py-1 px-2 rounded-[5px] bg-white hover:bg-[#eff6ff] border border-[#cbd5e1] text-[#1d4ed8] font-bold cursor-pointer text-center"
-                  >
-                    지정 관리자(1명)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleQuickFill('user1', 'user1234')}
-                    className="py-1 px-2 rounded-[5px] bg-white hover:bg-[#ecfdf5] border border-[#cbd5e1] text-[#047857] font-bold cursor-pointer text-center"
-                  >
-                    일반 사용자
-                  </button>
                 </div>
               </div>
 
