@@ -169,14 +169,19 @@ export async function discoverLanMinwonServers(
         const host = parsed.host || rinfo.address
         const port = parsed.port || defaultPort
         const url = parsed.url || `http://${host}:${port}`
-        // 내 컴퓨터가 아닌 외부 PC 서버를 우선 정렬하기 위해 저장
-        discovered.set(url, {
-          host,
-          port,
-          url,
-          serverName: parsed.serverName || host,
-          adminName: parsed.adminName || '자치경찰 민원접수대장 서버'
-        })
+        const serverKey = `${parsed.serverName || host}:${port}`
+        // 가상 어댑터(172.x 등)보다 일반 사설/행정망 대역을 우선 유지하며 동일 호스트 중복 제거
+        const existing = discovered.get(serverKey)
+        const isVirtualIp = host.startsWith('172.') || host.startsWith('169.254.')
+        if (!existing || !isVirtualIp) {
+          discovered.set(serverKey, {
+            host,
+            port,
+            url,
+            serverName: parsed.serverName || host,
+            adminName: parsed.adminName || '자치경찰 민원접수대장 서버'
+          })
+        }
         // 첫 응답 수신 후 80ms만 추가 대기하고 즉시 반환하여 로그인 체감 지연 제거
         if (!earlyTimer) {
           earlyTimer = setTimeout(finish, 80)
