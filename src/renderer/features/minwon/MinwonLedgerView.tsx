@@ -296,37 +296,33 @@ export const MinwonLedgerView: React.FC<MinwonLedgerViewProps> = ({
             </PillButton>
           </form>
 
-          <div className="flex items-center gap-1.5 shrink-0">
-            <span className="text-[11.5px] font-bold text-[#334155] whitespace-nowrap">공단 검토결과</span>
-            <select
-              value={reviewResult}
-              onChange={(e) => setReviewResult(e.target.value)}
-              className="h-[28px] px-2 rounded-[6px] border border-[#cbd5e1] bg-[#f8fafc] text-[12px] font-medium text-[#0f172a]"
-            >
-              <option value="전체">-- 전체 --</option>
-              {codes.검토결과.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
+          <select
+            value={reviewResult}
+            onChange={(e) => setReviewResult(e.target.value)}
+            title="공단 검토결과 필터"
+            className="h-[28px] px-2.5 rounded-[6px] border border-[#cbd5e1] bg-[#f8fafc] text-[12px] font-medium text-[#0f172a] shrink-0"
+          >
+            <option value="전체">공단 검토결과 전체</option>
+            {codes.검토결과.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
 
-          <div className="flex items-center gap-1.5 shrink-0">
-            <span className="text-[11.5px] font-bold text-[#334155] whitespace-nowrap">구역구분</span>
-            <select
-              value={zoneType}
-              onChange={(e) => setZoneType(e.target.value)}
-              className="h-[28px] px-2 rounded-[6px] border border-[#cbd5e1] bg-[#f8fafc] text-[12px] font-medium text-[#0f172a]"
-            >
-              <option value="전체">-- 전체 --</option>
-              {codes.구역구분.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
+          <select
+            value={zoneType}
+            onChange={(e) => setZoneType(e.target.value)}
+            title="구역구분 필터"
+            className="h-[28px] px-2.5 rounded-[6px] border border-[#cbd5e1] bg-[#f8fafc] text-[12px] font-medium text-[#0f172a] shrink-0"
+          >
+            <option value="전체">구역구분 전체</option>
+            {codes.구역구분.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
 
           <PillButton variant="pearl-capsule" size="sm" onClick={handleResetFilters}>
             <RotateCcw className="w-3.5 h-3.5 text-[#64748b]" />

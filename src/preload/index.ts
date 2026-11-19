@@ -87,11 +87,14 @@ export const minwonApi = {
   exportMinwonExcel: (params?: {
     query?: MinwonFilterQuery
     prefix?: '전체' | '조회'
+    customFileName?: string
   }): Promise<ActionResult<{ filePath: string }>> =>
     ipcRenderer.invoke(IPC_CHANNELS.EXPORT_MINWON_EXCEL, params),
 
-  exportDeviceStatsExcel: (): Promise<ActionResult<{ filePath: string }>> =>
-    ipcRenderer.invoke(IPC_CHANNELS.EXPORT_DEVICE_STATS_EXCEL),
+  exportDeviceStatsExcel: (params?: {
+    customFileName?: string
+  }): Promise<ActionResult<{ filePath: string }>> =>
+    ipcRenderer.invoke(IPC_CHANNELS.EXPORT_DEVICE_STATS_EXCEL, params),
 
   toggleServer: (params: {
     enabled: boolean

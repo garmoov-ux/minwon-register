@@ -1,4 +1,4 @@
-import { BrowserWindow, ipcMain, shell } from 'electron'
+import { BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import path from 'path'
 import { IPC_CHANNELS } from '@shared/ipc-channels'
 import {
@@ -448,17 +448,49 @@ export function registerIpcHandlers(ctx: IpcContext): void {
     }
   )
 
-  // 5. 엑셀 내보내기 (민원 전체/조회 결과, 단속장비 운영현황 통계)
+  // 5. 엑셀 내보내기 (민원 전체/조회 결과, 단속장비 운영현황 통계 — 저장될 파일명 지정 지원)
   ipcMain.handle(
     IPC_CHANNELS.EXPORT_MINWON_EXCEL,
-    (_e, params?: { query?: MinwonFilterQuery; prefix?: '전체' | '조회' }): ActionResult<{ filePath: string }> => {
+    async (
+      _e,
+      params?: { query?: MinwonFilterQuery; prefix?: '전체' | '조회'; customFileName?: string }
+    ): Promise<ActionResult<{ filePath: string }>> => {
       const records = ctx.minwonRepo.listRecords(params?.query)
-      const { filePath } = exportMinwonRecordsToExcel(records, params?.prefix || '전체')
+      const { exportDir } = resolveAppPaths()
+      const prefix = params?.prefix || '전체'
+      const now = new Date()
+      const dateTag = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(
+        now.getDate()
+      ).padStart(2, '0')}`
+      const defaultName =
+        params?.customFileName?.trim() || `민원접수대장_${prefix}_${dateTag}.xlsx`
+
+      const win = ctx.getMainWindow()
+      let targetPath = path.join(
+        exportDir,
+        defaultName.endsWith('.xlsx') ? defaultName : `${defaultName}.xlsx`
+      )
+
+      if (win) {
+        const saveRes = await dialog.showSaveDialog(win, {
+          title: '민원접수대장 엑셀 파일 저장',
+          defaultPath: targetPath,
+          filters: [{ name: '엑셀 통합 문서 (*.xlsx)', extensions: ['xlsx'] }]
+        })
+        if (saveRes.canceled || !saveRes.filePath) {
+          return { ok: false, message: '엑셀 파일 저장이 취소되었습니다.' }
+        }
+        targetPath = saveRes.filePath.endsWith('.xlsx')
+          ? saveRes.filePath
+          : `${saveRes.filePath}.xlsx`
+      }
+
+      const { filePath } = exportMinwonRecordsToExcel(records, prefix, targetPath)
       ctx.userRepo.recordAudit({
         username: getActorName(),
         action: '민원 엑셀 내보내기',
         targetType: '엑셀출력',
-        targetId: params?.prefix || '전체',
+        targetId: prefix,
         detail: `${records.length}건 -> ${path.basename(filePath)}`
       })
       ctx.broadcastUpdate()
@@ -472,9 +504,37 @@ export function registerIpcHandlers(ctx: IpcContext): void {
 
   ipcMain.handle(
     IPC_CHANNELS.EXPORT_DEVICE_STATS_EXCEL,
-    (): ActionResult<{ filePath: string }> => {
+    async (_e, params?: { customFileName?: string }): Promise<ActionResult<{ filePath: string }>> => {
       const stats = ctx.deviceRepo.computeOperationStats()
-      const { filePath } = exportDeviceOperationStatsToExcel(stats)
+      const { exportDir } = resolveAppPaths()
+      const now = new Date()
+      const dateTag = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(
+        now.getDate()
+      ).padStart(2, '0')}`
+      const defaultName =
+        params?.customFileName?.trim() || `무인교통단속장비_운영현황_통계_${dateTag}.xlsx`
+
+      const win = ctx.getMainWindow()
+      let targetPath = path.join(
+        exportDir,
+        defaultName.endsWith('.xlsx') ? defaultName : `${defaultName}.xlsx`
+      )
+
+      if (win) {
+        const saveRes = await dialog.showSaveDialog(win, {
+          title: '무인교통단속장비 운영현황 통계 엑셀 저장',
+          defaultPath: targetPath,
+          filters: [{ name: '엑셀 통합 문서 (*.xlsx)', extensions: ['xlsx'] }]
+        })
+        if (saveRes.canceled || !saveRes.filePath) {
+          return { ok: false, message: '장비 통계 엑셀 저장이 취소되었습니다.' }
+        }
+        targetPath = saveRes.filePath.endsWith('.xlsx')
+          ? saveRes.filePath
+          : `${saveRes.filePath}.xlsx`
+      }
+
+      const { filePath } = exportDeviceOperationStatsToExcel(stats, targetPath)
       ctx.userRepo.recordAudit({
         username: getActorName(),
         action: '장비 통계 엑셀 내보내기',
@@ -485,7 +545,7 @@ export function registerIpcHandlers(ctx: IpcContext): void {
       ctx.broadcastUpdate()
       return {
         ok: true,
-        message: `무인교통단속장비 운영현황 통계 파일이 저장되었습니다: ${filePath}`,
+        message: `장비 운영현황 통계 파일이 저장되었습니다: ${filePath}`,
         data: { filePath }
       }
     }

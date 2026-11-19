@@ -277,7 +277,8 @@ function getTimestampSuffix(): string {
 
 export function exportMinwonRecordsToExcel(
   records: MinwonRecord[],
-  prefix: '전체' | '조회' = '전체'
+  prefix: '전체' | '조회' = '전체',
+  customFilePath?: string
 ): { filePath: string; buffer: Buffer } {
   const headers = [
     '연번',
@@ -319,14 +320,16 @@ export function exportMinwonRecordsToExcel(
 
   const { exportDir } = resolveAppPaths()
   const fileName = `${prefix}_${getTimestampSuffix()}.xlsx`
-  const filePath = path.join(exportDir, fileName)
+  const filePath = customFilePath || path.join(exportDir, fileName)
+  fs.mkdirSync(path.dirname(filePath), { recursive: true })
   fs.writeFileSync(filePath, buffer)
 
   return { filePath, buffer }
 }
 
 export function exportDeviceOperationStatsToExcel(
-  stats: DeviceOperationStats
+  stats: DeviceOperationStats,
+  customFilePath?: string
 ): { filePath: string; buffer: Buffer } {
   const headers = [
     '연번',
@@ -384,7 +387,8 @@ export function exportDeviceOperationStatsToExcel(
 
   const { exportDir } = resolveAppPaths()
   const fileName = `통계_${getTimestampSuffix()}.xlsx`
-  const filePath = path.join(exportDir, fileName)
+  const filePath = customFilePath || path.join(exportDir, fileName)
+  fs.mkdirSync(path.dirname(filePath), { recursive: true })
   fs.writeFileSync(filePath, buffer)
 
   return { filePath, buffer }

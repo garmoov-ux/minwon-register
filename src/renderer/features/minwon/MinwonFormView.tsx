@@ -7,7 +7,6 @@ import {
   RotateCcw,
   Save,
   Search,
-  Sparkles,
   Trash2
 } from 'lucide-react'
 import {
@@ -395,28 +394,22 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
                   />
                 </div>
 
-                {/* 민원내용 + 자주 쓰는 문구 원클릭 */}
+                {/* 민원내용 + 다음 행에 자주 쓰는 문구 칩 배치 (빠른 문구 텍스트 없이) */}
                 <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[11.5px] font-semibold text-[#475569]">
-                      민원내용
-                    </label>
-                    <div className="flex items-center gap-1 flex-wrap">
-                      <span className="text-[10.5px] text-[#64748b] inline-flex items-center gap-0.5 mr-0.5">
-                        <Sparkles className="w-3 h-3 text-[#2563eb]" />
-                        빠른 문구:
-                      </span>
-                      {QUICK_CONTENT_TEMPLATES.map((tpl) => (
-                        <button
-                          key={tpl}
-                          type="button"
-                          onClick={() => setContent(tpl)}
-                          className="px-2 py-0.5 rounded-[4px] bg-white hover:bg-[#eff6ff] border border-[#cbd5e1] text-[10.5px] font-semibold text-[#334155] hover:text-[#1d4ed8] cursor-pointer"
-                        >
-                          {tpl}
-                        </button>
-                      ))}
-                    </div>
+                  <label className="block text-[11.5px] font-semibold text-[#475569] whitespace-nowrap">
+                    민원내용
+                  </label>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {QUICK_CONTENT_TEMPLATES.map((tpl) => (
+                      <button
+                        key={tpl}
+                        type="button"
+                        onClick={() => setContent(tpl)}
+                        className="px-2.5 py-1 rounded-[5px] bg-white hover:bg-[#eff6ff] border border-[#cbd5e1] text-[11px] font-semibold text-[#334155] hover:text-[#1d4ed8] transition-colors cursor-pointer"
+                      >
+                        {tpl}
+                      </button>
+                    ))}
                   </div>
                   <textarea
                     rows={2}

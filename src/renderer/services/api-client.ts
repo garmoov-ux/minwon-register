@@ -353,6 +353,7 @@ export const unifiedApiClient = {
   async exportMinwonExcel(params?: {
     query?: MinwonFilterQuery
     prefix?: '전체' | '조회'
+    customFileName?: string
   }): Promise<ActionResult<{ filePath: string }>> {
     if (!shouldUseRestApi() && window.minwonApi) {
       return window.minwonApi.exportMinwonExcel(params)
@@ -363,12 +364,15 @@ export const unifiedApiClient = {
     })
   },
 
-  async exportDeviceStatsExcel(): Promise<ActionResult<{ filePath: string }>> {
+  async exportDeviceStatsExcel(params?: {
+    customFileName?: string
+  }): Promise<ActionResult<{ filePath: string }>> {
     if (!shouldUseRestApi() && window.minwonApi) {
-      return window.minwonApi.exportDeviceStatsExcel()
+      return window.minwonApi.exportDeviceStatsExcel(params)
     }
     return fetchJson<{ filePath: string }>('/api/v1/export/device-stats', {
-      method: 'POST'
+      method: 'POST',
+      body: JSON.stringify(params || {})
     })
   },
 

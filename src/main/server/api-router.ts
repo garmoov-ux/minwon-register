@@ -382,9 +382,13 @@ export async function handleApiRequest(
       return true
     }
 
-    // 11. 엑셀 파일(.xlsx) 다운로드 및 서버 Export 폴더 저장
+    // 11. 엑셀 파일(.xlsx) 다운로드 및 서버 Export 폴더 저장 (파일명 지정 지원)
     if (pathname === '/api/v1/export/minwon' && method === 'POST') {
-      const body = await readJsonBody<{ query?: MinwonFilterQuery; prefix?: '전체' | '조회' }>(req)
+      const body = await readJsonBody<{
+        query?: MinwonFilterQuery
+        prefix?: '전체' | '조회'
+        customFileName?: string
+      }>(req)
       const records = ctx.minwonRepo.listRecords(body.query)
       const { filePath } = exportMinwonRecordsToExcel(records, body.prefix || '조회')
       ctx.onStateMutated()
