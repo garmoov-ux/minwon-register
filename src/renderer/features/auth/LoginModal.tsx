@@ -146,17 +146,17 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         </div>
 
         <div className="p-5 space-y-4">
-          {/* 이미 로그인된 상태일 때 현재 로그인 사용자 상세 정보 카드 */}
+          {/* 1. 이미 로그인된 상태일 때: 현재 로그인 사용자 정보 카드 + 비밀번호 변경 / 로그아웃 버튼만 표시 */}
           {session && !changingPw && (
-            <div className="rounded-[10px] border border-[#cbd5e1] bg-[#f8fafc] p-3.5 space-y-2.5">
+            <div className="rounded-[10px] border border-[#cbd5e1] bg-[#f8fafc] p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <User className="w-4 h-4 text-[#2563eb]" />
-                  <span className="text-[14px] font-extrabold text-[#0f172a]">
+                  <span className="text-[14.5px] font-extrabold text-[#0f172a]">
                     {session.user.displayName}
                   </span>
-                  <span className="text-[11.5px] text-[#64748b] font-medium">
-                    (아이디: {session.user.username})
+                  <span className="text-[12px] text-[#64748b] font-medium">
+                    ({session.user.username})
                   </span>
                 </div>
                 <span
@@ -168,7 +168,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-1.5 pt-1 text-[11.5px] text-[#334155] border-t border-[#e2e8f0]">
+              <div className="grid grid-cols-2 gap-2 pt-2 text-[12px] text-[#334155] border-t border-[#e2e8f0]">
                 <div className="flex items-center gap-1.5">
                   <Briefcase className="w-3.5 h-3.5 text-[#64748b]" />
                   <span>직책: {session.user.jobTitle || '-'}</span>
@@ -183,10 +183,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 </div>
               </div>
 
-              <div className="pt-1 flex items-center gap-2">
+              <div className="pt-2 flex items-center gap-2">
                 <PillButton
                   variant="pearl-capsule"
-                  size="sm"
+                  size="md"
                   className="flex-1"
                   onClick={() => {
                     setChangingPw(true)
@@ -198,18 +198,23 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 </PillButton>
                 <PillButton
                   variant="dark-utility"
-                  size="sm"
+                  size="md"
                   className="flex-1"
-                  onClick={onLogout}
+                  onClick={() => {
+                    setUsername('')
+                    setPassword('')
+                    setErrorMsg('')
+                    onLogout()
+                  }}
                 >
                   <LogOut className="w-3.5 h-3.5 text-[#f59e0b]" />
-                  <span>로그아웃 / 계정 전환</span>
+                  <span>로그아웃</span>
                 </PillButton>
               </div>
             </div>
           )}
 
-          {/* 비밀번호 변경 폼 */}
+          {/* 2. 비밀번호 변경 폼 */}
           {session && changingPw && (
             <form onSubmit={(e) => void handleChangePassword(e)} className="space-y-3">
               <div className="text-[13px] font-bold text-[#0f172a]">
@@ -263,8 +268,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             </form>
           )}
 
-          {/* 깔끔한 아이디 / 비밀번호 로그인 입력 폼 */}
-          {!changingPw && (
+          {/* 3. 로그아웃(미로그인) 상태일 때만 아이디 / 비밀번호 로그인 입력 폼 표시 */}
+          {!session && (
             <form onSubmit={(e) => void handleLoginSubmit(e)} className="space-y-3.5">
               <div>
                 <label className="block text-[12px] font-semibold text-[#334155] mb-1">
