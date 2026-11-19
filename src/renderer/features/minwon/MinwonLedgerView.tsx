@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from 'react'
 import {
   Calendar,
+  Check,
+  Columns3,
   Download,
   Edit3,
+  EyeOff,
   FilePlus2,
   FileSpreadsheet,
   Filter,
@@ -57,6 +60,51 @@ const QUICK_PERIODS: Array<{ id: QuickDatePeriod; label: string }> = [
   { id: 'THIS_YEAR', label: '금년' }
 ]
 
+export type LedgerColumnKey =
+  | 'id'
+  | 'receivedDate'
+  | 'receptionType'
+  | 'receptionNo'
+  | 'complainantName'
+  | 'contact'
+  | 'location'
+  | 'zoneType'
+  | 'content'
+  | 'reviewDate'
+  | 'reviewResult'
+  | 'improvementResult'
+  | 'note'
+  | 'actions'
+
+const LEDGER_COLUMNS: Array<{ key: LedgerColumnKey; label: string; width: number }> = [
+  { key: 'id', label: '연번', width: 48 },
+  { key: 'receivedDate', label: '접수일자', width: 92 },
+  { key: 'receptionType', label: '접수구분', width: 96 },
+  { key: 'receptionNo', label: '문서(접수)번호', width: 138 },
+  { key: 'complainantName', label: '이름', width: 88 },
+  { key: 'contact', label: '연락처', width: 112 },
+  { key: 'location', label: '위치', width: 210 },
+  { key: 'zoneType', label: '구역구분', width: 96 },
+  { key: 'content', label: '민원내용', width: 180 },
+  { key: 'reviewDate', label: '공단 검토일자', width: 92 },
+  { key: 'reviewResult', label: '공단 검토결과', width: 92 },
+  { key: 'improvementResult', label: '개선결과', width: 120 },
+  { key: 'note', label: '비고', width: 110 },
+  { key: 'actions', label: '관리', width: 64 }
+]
+
+const CORE_SUMMARY_COLUMNS: LedgerColumnKey[] = [
+  'id',
+  'receivedDate',
+  'receptionType',
+  'complainantName',
+  'location',
+  'content',
+  'reviewResult'
+]
+
+const VISIBLE_COLS_STORAGE_KEY = 'minwon_ledger_visible_cols_v1'
+
 const RESULT_BADGE_MAP: Record<string, string> = {
   적합: 'bg-[#ecfdf5] text-[#047857] border-[#a7f3d0]',
   '조건부 적합': 'bg-[#eff6ff] text-[#1d4ed8] border-[#bfdbfe]',
@@ -99,6 +147,66 @@ export const MinwonLedgerView: React.FC<MinwonLedgerViewProps> = ({
   const [reviewPeriod, setReviewPeriod] = useState<QuickDatePeriod>('ALL')
   const [reviewStartDate, setReviewStartDate] = useState<string>('')
   const [reviewEndDate, setReviewEndDate] = useState<string>('')
+
+  // 필드(열) 표시/숨김 관리 상태 (localStorage 자동 저장)
+  const [showColumnSelector, setShowColumnSelector] = useState<boolean>(false)
+  const [visibleCols, setVisibleCols] = useState<Record<LedgerColumnKey, boolean>>(() => {
+    const defaultMap = LEDGER_COLUMNS.reduce(
+      (acc, col) => ({ ...acc, [col.key]: true }),
+      {} as Record<LedgerColumnKey, boolean>
+    )
+    try {
+      const saved = localStorage.getItem(VISIBLE_COLS_STORAGE_KEY)
+      if (saved) {
+        return { ...defaultMap, ...(JSON.parse(saved) as Record<LedgerColumnKey, boolean>) }
+      }
+    } catch {
+      // ignore
+    }
+    return defaultMap
+  })
+
+  const updateVisibleCols = (next: Record<LedgerColumnKey, boolean>): void => {
+    setVisibleCols(next)
+    try {
+      localStorage.setItem(VISIBLE_COLS_STORAGE_KEY, JSON.stringify(next))
+    } catch {
+      // ignore
+    }
+  }
+
+  const toggleColumnVisibility = (key: LedgerColumnKey): void => {
+    const activeKeys = LEDGER_COLUMNS.filter((c) => visibleCols[c.key]).map((c) => c.key)
+    if (visibleCols[key] && activeKeys.length <= 1) {
+      onShowToast('최소 1개 이상의 필드는 표시되어야 합니다.')
+      return
+    }
+    updateVisibleCols({ ...visibleCols, [key]: !visibleCols[key] })
+  }
+
+  const showAllColumns = (): void => {
+    const allOn = LEDGER_COLUMNS.reduce(
+      (acc, col) => ({ ...acc, [col.key]: true }),
+      {} as Record<LedgerColumnKey, boolean>
+    )
+    updateVisibleCols(allOn)
+  }
+
+  const showCoreSummaryColumns = (): void => {
+    const coreSet = new Set(CORE_SUMMARY_COLUMNS)
+    const coreMap = LEDGER_COLUMNS.reduce(
+      (acc, col) => ({ ...acc, [col.key]: coreSet.has(col.key) }),
+      {} as Record<LedgerColumnKey, boolean>
+    )
+    updateVisibleCols(coreMap)
+  }
+
+  const availableColumns = LEDGER_COLUMNS.filter((col) => canWrite || col.key !== 'actions')
+  const visibleColumnList = availableColumns.filter((col) => visibleCols[col.key])
+  const dynamicTableMinWidth = Math.max(
+    680,
+    visibleColumnList.reduce((sum, col) => sum + col.width, 0)
+  )
 
   const currentQuery: MinwonFilterQuery = {
     division,
@@ -346,6 +454,21 @@ export const MinwonLedgerView: React.FC<MinwonLedgerViewProps> = ({
             <span>초기화</span>
           </PillButton>
 
+          <PillButton
+            variant={showColumnSelector ? 'primary' : 'pearl-capsule'}
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation()
+              setShowColumnSelector((prev) => !prev)
+            }}
+            title="보고 싶은 필드(열)만 선택하거나 숨길 수 있습니다"
+          >
+            <Columns3 className="w-3.5 h-3.5" />
+            <span>
+              필드 표시/숨김 ({visibleColumnList.length}/{availableColumns.length})
+            </span>
+          </PillButton>
+
           <div className="h-[28px] px-2.5 rounded-[6px] bg-[#eff6ff] border border-[#bfdbfe] text-[#1d4ed8] text-[12px] font-extrabold inline-flex items-center gap-1 shrink-0">
             <span>검색 결과</span>
             <span>{records.length.toLocaleString()}건</span>
@@ -354,6 +477,69 @@ export const MinwonLedgerView: React.FC<MinwonLedgerViewProps> = ({
             </span>
           </div>
         </div>
+
+        {/* 필드(열) 표시/숨김 선택 패널 */}
+        {showColumnSelector && (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="rounded-[8px] border border-[#93c5fd] bg-[#eff6ff]/60 p-2.5 space-y-2"
+          >
+            <div className="flex items-center justify-between">
+              <div className="text-[11.5px] font-bold text-[#0f172a] inline-flex items-center gap-1.5">
+                <Columns3 className="w-3.5 h-3.5 text-[#2563eb]" />
+                <span>대장 목록에 표시할 필드(열) 선택 — 클릭하여 보고 싶은 필드만 켜거나 숨길 수 있습니다</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={showCoreSummaryColumns}
+                  className="px-2.5 py-0.5 rounded-[5px] bg-white hover:bg-[#dbeafe] border border-[#93c5fd] text-[#1d4ed8] text-[11px] font-bold cursor-pointer"
+                >
+                  핵심 항목만 보기
+                </button>
+                <button
+                  type="button"
+                  onClick={showAllColumns}
+                  className="px-2.5 py-0.5 rounded-[5px] bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-[11px] font-bold cursor-pointer"
+                >
+                  전체 항목 표시
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowColumnSelector(false)}
+                  className="px-2 py-0.5 rounded-[5px] bg-white hover:bg-[#f1f5f9] border border-[#cbd5e1] text-[#475569] text-[11px] font-semibold cursor-pointer"
+                >
+                  닫기
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {availableColumns.map((col) => {
+                const isOn = Boolean(visibleCols[col.key])
+                return (
+                  <button
+                    key={col.key}
+                    type="button"
+                    onClick={() => toggleColumnVisibility(col.key)}
+                    className={`h-[27px] px-2.5 rounded-[6px] text-[11.5px] font-semibold border inline-flex items-center gap-1 transition-all cursor-pointer ${
+                      isOn
+                        ? 'bg-[#0f172a] text-white border-[#0f172a]'
+                        : 'bg-white text-[#94a3b8] border-[#cbd5e1] hover:text-[#475569]'
+                    }`}
+                  >
+                    {isOn ? (
+                      <Check className="w-3 h-3 text-[#38bdf8]" />
+                    ) : (
+                      <EyeOff className="w-3 h-3 text-[#94a3b8]" />
+                    )}
+                    <span>{col.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* 2행: 접수일자 빠른 기간 & 공단 검토일자 빠른 기간 (한 줄 정렬) */}
         <div className="grid grid-cols-12 gap-3 pt-1.5 border-t border-[#e2e8f0] text-[11.5px]">
@@ -447,33 +633,56 @@ export const MinwonLedgerView: React.FC<MinwonLedgerViewProps> = ({
         </div>
       </div>
 
-      {/* 단일 테두리 시트: 좌측 13개 필드 민원접수대장 테이블 + 우측 선택 시 열리는 속성:값 사이드패널 */}
+      {/* 단일 테두리 시트: 좌측 선택된 필드 민원접수대장 테이블 + 우측 선택 시 열리는 속성:값 사이드패널 */}
       <div className="flex-1 min-h-0 bg-[#ffffff] border border-[#cbd5e1] rounded-[10px] overflow-hidden flex">
         <div className="flex-1 min-w-0 min-h-0 overflow-auto">
-          <table className="w-full min-w-[1260px] table-fixed border-collapse text-left text-[12px]">
+          <table
+            className="w-full table-fixed border-collapse text-left text-[12px]"
+            style={{ minWidth: `${dynamicTableMinWidth}px` }}
+          >
             <thead className="sticky top-0 z-10 bg-[#f1f5f9] text-[#334155] border-b border-[#cbd5e1] text-[11.5px] font-bold">
               <tr className="whitespace-nowrap">
-                <th className="py-2.5 px-2 text-center w-[48px]">연번</th>
-                <th className="py-2.5 px-2 text-center w-[92px]">접수일자</th>
-                <th className="py-2.5 px-2 text-center w-[96px]">접수구분</th>
-                <th className="py-2.5 px-2 text-center w-[138px]">문서(접수)번호</th>
-                <th className="py-2.5 px-2 text-center w-[88px]">이름</th>
-                <th className="py-2.5 px-2 text-center w-[112px]">연락처</th>
-                <th className="py-2.5 px-2.5 w-[210px]">위치</th>
-                <th className="py-2.5 px-2 text-center w-[96px]">구역구분</th>
-                <th className="py-2.5 px-2.5 w-[180px]">민원내용</th>
-                <th className="py-2.5 px-2 text-center w-[92px]">공단 검토일자</th>
-                <th className="py-2.5 px-2 text-center w-[92px]">공단 검토결과</th>
-                <th className="py-2.5 px-2 w-[120px]">개선결과</th>
-                <th className="py-2.5 px-2 w-[110px]">비고</th>
-                {canWrite && <th className="py-2.5 px-2 text-center w-[64px]">관리</th>}
+                {visibleCols.id && <th className="py-2.5 px-2 text-center w-[48px]">연번</th>}
+                {visibleCols.receivedDate && (
+                  <th className="py-2.5 px-2 text-center w-[92px]">접수일자</th>
+                )}
+                {visibleCols.receptionType && (
+                  <th className="py-2.5 px-2 text-center w-[96px]">접수구분</th>
+                )}
+                {visibleCols.receptionNo && (
+                  <th className="py-2.5 px-2 text-center w-[138px]">문서(접수)번호</th>
+                )}
+                {visibleCols.complainantName && (
+                  <th className="py-2.5 px-2 text-center w-[88px]">이름</th>
+                )}
+                {visibleCols.contact && (
+                  <th className="py-2.5 px-2 text-center w-[112px]">연락처</th>
+                )}
+                {visibleCols.location && <th className="py-2.5 px-2.5 w-[210px]">위치</th>}
+                {visibleCols.zoneType && (
+                  <th className="py-2.5 px-2 text-center w-[96px]">구역구분</th>
+                )}
+                {visibleCols.content && <th className="py-2.5 px-2.5 w-[180px]">민원내용</th>}
+                {visibleCols.reviewDate && (
+                  <th className="py-2.5 px-2 text-center w-[92px]">공단 검토일자</th>
+                )}
+                {visibleCols.reviewResult && (
+                  <th className="py-2.5 px-2 text-center w-[92px]">공단 검토결과</th>
+                )}
+                {visibleCols.improvementResult && (
+                  <th className="py-2.5 px-2 w-[120px]">개선결과</th>
+                )}
+                {visibleCols.note && <th className="py-2.5 px-2 w-[110px]">비고</th>}
+                {canWrite && visibleCols.actions && (
+                  <th className="py-2.5 px-2 text-center w-[64px]">관리</th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-[#e2e8f0]">
               {records.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={canWrite ? 14 : 13}
+                    colSpan={Math.max(1, visibleColumnList.length)}
                     className="py-16 text-center text-[#64748b] text-[13px]"
                   >
                     조회된 민원접수 내역이 없습니다. 우측 상단의 [신규 등록] 버튼으로 민원을 등록해 보세요.
@@ -504,61 +713,87 @@ export const MinwonLedgerView: React.FC<MinwonLedgerViewProps> = ({
                           : 'hover:bg-[#f8fafc]'
                       }`}
                     >
-                      <td className="py-1.5 px-2 text-center font-bold text-[#0f172a]">
-                        {r.id}
-                      </td>
-                      <td className="py-1.5 px-2 text-center text-[#334155]">
-                        {r.receivedDate}
-                      </td>
-                      <td className="py-1.5 px-2 text-center">
-                        <span className="inline-block px-2 py-0.5 rounded-[4px] bg-[#f1f5f9] border border-[#cbd5e1] text-[11px] font-semibold text-[#334155] whitespace-nowrap">
-                          {r.receptionType || '-'}
-                        </span>
-                      </td>
-                      <td
-                        className="py-1.5 px-2 text-center font-bold text-[#2563eb] truncate"
-                        title={r.receptionNo}
-                      >
-                        {r.receptionNo || '-'}
-                      </td>
-                      <td
-                        className="py-1.5 px-2 text-center font-semibold text-[#0f172a] truncate"
-                        title={r.complainantName}
-                      >
-                        {r.complainantName || '-'}
-                      </td>
-                      <td className="py-1.5 px-2 text-center text-[#334155] truncate" title={r.contact}>
-                        {r.contact || '-'}
-                      </td>
-                      <td className="py-1.5 px-2.5 text-[#0f172a] truncate" title={r.location}>
-                        {r.location || '-'}
-                      </td>
-                      <td className="py-1.5 px-2 text-center text-[11.5px] text-[#475569]">
-                        {r.zoneType || '일반구역'}
-                      </td>
-                      <td className="py-1.5 px-2.5 text-[#334155] truncate" title={r.content}>
-                        {r.content || '-'}
-                      </td>
-                      <td className="py-1.5 px-2 text-center text-[#334155]">
-                        {r.reviewDate || '-'}
-                      </td>
-                      <td className="py-1.5 px-2 text-center">
-                        <span
-                          className={`inline-block px-2 py-0.5 rounded-[5px] border text-[11px] font-semibold whitespace-nowrap ${badgeCls}`}
+                      {visibleCols.id && (
+                        <td className="py-1.5 px-2 text-center font-bold text-[#0f172a]">
+                          {r.id}
+                        </td>
+                      )}
+                      {visibleCols.receivedDate && (
+                        <td className="py-1.5 px-2 text-center text-[#334155]">
+                          {r.receivedDate}
+                        </td>
+                      )}
+                      {visibleCols.receptionType && (
+                        <td className="py-1.5 px-2 text-center">
+                          <span className="inline-block px-2 py-0.5 rounded-[4px] bg-[#f1f5f9] border border-[#cbd5e1] text-[11px] font-semibold text-[#334155] whitespace-nowrap">
+                            {r.receptionType || '-'}
+                          </span>
+                        </td>
+                      )}
+                      {visibleCols.receptionNo && (
+                        <td
+                          className="py-1.5 px-2 text-center font-bold text-[#2563eb] truncate"
+                          title={r.receptionNo}
                         >
-                          {r.reviewResult || '대기중'}
-                        </span>
-                      </td>
-                      <td
-                        className="py-1.5 px-2 text-[#334155] truncate"
-                        title={r.improvementResult}
-                      >
-                        {r.improvementResult || '-'}
-                      </td>
-                      <td className="py-1.5 px-2 text-[#64748b] truncate" title={r.note}>
-                        {r.note || (r.deviceId ? `[${r.deviceId}]` : '-')}
-                      </td>
-                      {canWrite && (
+                          {r.receptionNo || '-'}
+                        </td>
+                      )}
+                      {visibleCols.complainantName && (
+                        <td
+                          className="py-1.5 px-2 text-center font-semibold text-[#0f172a] truncate"
+                          title={r.complainantName}
+                        >
+                          {r.complainantName || '-'}
+                        </td>
+                      )}
+                      {visibleCols.contact && (
+                        <td className="py-1.5 px-2 text-center text-[#334155] truncate" title={r.contact}>
+                          {r.contact || '-'}
+                        </td>
+                      )}
+                      {visibleCols.location && (
+                        <td className="py-1.5 px-2.5 text-[#0f172a] truncate" title={r.location}>
+                          {r.location || '-'}
+                        </td>
+                      )}
+                      {visibleCols.zoneType && (
+                        <td className="py-1.5 px-2 text-center text-[11.5px] text-[#475569]">
+                          {r.zoneType || '일반구역'}
+                        </td>
+                      )}
+                      {visibleCols.content && (
+                        <td className="py-1.5 px-2.5 text-[#334155] truncate" title={r.content}>
+                          {r.content || '-'}
+                        </td>
+                      )}
+                      {visibleCols.reviewDate && (
+                        <td className="py-1.5 px-2 text-center text-[#334155]">
+                          {r.reviewDate || '-'}
+                        </td>
+                      )}
+                      {visibleCols.reviewResult && (
+                        <td className="py-1.5 px-2 text-center">
+                          <span
+                            className={`inline-block px-2 py-0.5 rounded-[5px] border text-[11px] font-semibold whitespace-nowrap ${badgeCls}`}
+                          >
+                            {r.reviewResult || '대기중'}
+                          </span>
+                        </td>
+                      )}
+                      {visibleCols.improvementResult && (
+                        <td
+                          className="py-1.5 px-2 text-[#334155] truncate"
+                          title={r.improvementResult}
+                        >
+                          {r.improvementResult || '-'}
+                        </td>
+                      )}
+                      {visibleCols.note && (
+                        <td className="py-1.5 px-2 text-[#64748b] truncate" title={r.note}>
+                          {r.note || (r.deviceId ? `[${r.deviceId}]` : '-')}
+                        </td>
+                      )}
+                      {canWrite && visibleCols.actions && (
                         <td
                           className="py-1.5 px-2 text-center"
                           onClick={(e) => e.stopPropagation()}
