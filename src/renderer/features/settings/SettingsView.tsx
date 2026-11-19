@@ -451,27 +451,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         </UtilityCard>
 
-        {/* 기존 민원 데이터(114건) 복원 및 전체 초기화 */}
+        {/* 민원접수대장 데이터베이스 전체 초기화 */}
         <UtilityCard
-          title="기존 민원접수대장 데이터 복원 및 초기화"
+          title="민원접수대장 데이터베이스 초기화"
           badge={<AlertTriangle className="w-3.5 h-3.5 text-[#2563eb]" />}
           className="shrink-0"
         >
           <div className="flex items-center justify-between gap-2">
             <div className="text-[11.5px] text-[#64748b]">
-              기존 민원접수대장 데이터(114건)를 다시 불러오거나 전체 초기화합니다.
+              내장 데이터베이스(data/minwon.db)의 민원접수 내역을 전체 초기화합니다 (최고관리자 전용).
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
-              {canWrite && (
-                <PillButton
-                  variant="pearl-capsule"
-                  size="sm"
-                  onClick={() => void handleReloadMinwonCsv()}
-                >
-                  <RefreshCw className="w-3.5 h-3.5 text-[#059669]" />
-                  <span>기존 민원(114건) 복원</span>
-                </PillButton>
-              )}
               {isSuperAdmin && !confirmResetOpen && (
                 <PillButton
                   variant="pearl-capsule"

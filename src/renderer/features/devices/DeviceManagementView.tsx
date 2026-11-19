@@ -302,12 +302,6 @@ export const DeviceManagementView: React.FC<DeviceManagementViewProps> = ({
               <span>신규 장비 추가</span>
             </PillButton>
           )}
-          {canWrite && (
-            <PillButton variant="pearl-capsule" size="sm" onClick={() => void handleReloadCsv()}>
-              <RefreshCw className="w-3.5 h-3.5 text-[#059669]" />
-              <span>원본 장비(487대) 동기화</span>
-            </PillButton>
-          )}
           <PillButton variant="primary" size="sm" onClick={() => void handleExportStatsExcel()}>
             <FileSpreadsheet className="w-3.5 h-3.5" />
             <span>운영현황 통계 엑셀 내보내기</span>
