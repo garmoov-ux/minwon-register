@@ -588,12 +588,18 @@ export function seedInitialDatabase(
     }
   }
 
-  // 4. 기존 민원접수대장 데이터(datadb.csv, 114건) 자동 시드
+  // 4. 기존 민원접수대장 데이터(datadb.csv, 114건) 자동 시드 (단, 사용자가 '민원 전체 초기화'를 실행한 경우에는 빈 상태 유지)
   if (options?.seedMinwon !== false) {
     const minwonCount = (
       db.prepare('SELECT COUNT(*) as cnt FROM minwon_records').get() as { cnt: number }
     ).cnt
-    if (minwonCount === 0) {
+    const wasExplicitlyReset = (
+      db
+        .prepare("SELECT COUNT(*) as cnt FROM audit_logs WHERE action = '민원 전체 초기화'")
+        .get() as { cnt: number }
+    ).cnt > 0
+
+    if (minwonCount === 0 && !wasExplicitlyReset) {
       const candidates = [
         options?.customMinwonCsvPath,
         path.resolve(resPath, 'datadb.csv'),
