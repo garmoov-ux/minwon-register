@@ -35,7 +35,7 @@ interface ServerControlViewProps {
   isSuperAdmin: boolean
   canManageUsers: boolean
   canControlServer: boolean
-  onToggleServer: (enabled: boolean, port?: number) => Promise<void>
+  onToggleServer: (enabled: boolean, port?: number, host?: string) => Promise<void>
   onUpdateConfig: (next: AppConfig) => Promise<void>
   onRefreshSnapshot: () => Promise<void>
   onShowToast: (msg: string) => void
@@ -61,7 +61,14 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
   onShowToast
 }) => {
   const [portInput, setPortInput] = useState<number>(config.server.port)
+  const [hostInput, setHostInput] = useState<string>(config.server.host || '0.0.0.0')
   const [editingUser, setEditingUser] = useState<CreateUserPayload | null>(null)
+  const [discovering, setDiscovering] = useState<boolean>(false)
+  const [discoveredList, setDiscoveredList] = useState<
+    Array<{ host: string; port: number; url: string; serverName: string }>
+  >([])
+
+  const adapters = serverStatus.adapters || []
 
   const designatedAdminUser = users.find(
     (u) =>
@@ -153,20 +160,34 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-1.5 shrink-0">
+                <select
+                  value={hostInput}
+                  onChange={(e) => setHostInput(e.target.value)}
+                  disabled={serverStatus.running || !canControlServer}
+                  title="다중 랜카드 중 서버를 열 네트워크 어댑터(아이피) 선택"
+                  className="h-[32px] px-2 rounded-[6px] border border-[#cbd5e1] bg-white text-[11.5px] font-semibold text-[#0f172a] disabled:bg-[#e2e8f0] max-w-[165px]"
+                >
+                  <option value="0.0.0.0">모든 랜카드 (전체 열기)</option>
+                  {adapters.map((ad) => (
+                    <option key={ad.address} value={ad.address}>
+                      {ad.name} ({ad.address}){ad.isVirtual ? ' [가상]' : ''}
+                    </option>
+                  ))}
+                </select>
                 <input
                   type="number"
                   value={portInput}
                   onChange={(e) => setPortInput(Number(e.target.value))}
                   disabled={serverStatus.running || !canControlServer}
-                  className="w-[72px] h-[32px] px-2 rounded-[6px] border border-[#cbd5e1] bg-white text-center font-bold text-[12.5px] disabled:bg-[#e2e8f0]"
+                  className="w-[68px] h-[32px] px-1.5 rounded-[6px] border border-[#cbd5e1] bg-white text-center font-bold text-[12px] disabled:bg-[#e2e8f0]"
                   title="서버 포트 번호"
                 />
                 {serverStatus.running ? (
                   <PillButton
                     variant="dark-utility"
                     disabled={!canControlServer}
-                    onClick={() => void onToggleServer(false, portInput)}
+                    onClick={() => void onToggleServer(false, portInput, hostInput)}
                   >
                     <Square className="w-3.5 h-3.5 text-[#f59e0b]" />
                     <span>서버 끄기</span>
@@ -175,7 +196,7 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
                   <PillButton
                     variant="primary"
                     disabled={!canControlServer}
-                    onClick={() => void onToggleServer(true, portInput)}
+                    onClick={() => void onToggleServer(true, portInput, hostInput)}
                   >
                     <Play className="w-3.5 h-3.5" />
                     <span>서버 켜기</span>
@@ -199,26 +220,79 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
 
               {serverStatus.running && serverStatus.urls.length > 0 ? (
                 <div className="space-y-1.5">
-                  {serverStatus.urls.map((url) => (
-                    <div
-                      key={url}
-                      className="rounded-[7px] bg-white border border-[#cbd5e1] px-3 py-1.5 flex items-center justify-between text-[12.5px]"
+                  {serverStatus.urls.map((url) => {
+                    const matchedAd = adapters.find((a) => url.includes(a.address))
+                    return (
+                      <div
+                        key={url}
+                        className="rounded-[7px] bg-white border border-[#cbd5e1] px-3 py-1.5 flex items-center justify-between text-[12px]"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          {matchedAd && (
+                            <span
+                              className={`px-1.5 py-0.5 rounded-[4px] text-[10.5px] font-bold ${
+                                matchedAd.isVirtual
+                                  ? 'bg-[#f1f5f9] text-[#64748b]'
+                                  : 'bg-[#eff6ff] text-[#1d4ed8]'
+                              }`}
+                            >
+                              {matchedAd.name}
+                            </span>
+                          )}
+                          <span className="font-bold text-[#2563eb] select-all truncate">{url}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void handleCopyUrl(url)}
+                          className="px-2 py-0.5 rounded-[5px] bg-[#eff6ff] hover:bg-[#dbeafe] text-[#1d4ed8] text-[11px] font-semibold inline-flex items-center gap-1 cursor-pointer shrink-0"
+                        >
+                          <Copy className="w-3 h-3" />
+                          <span>복사</span>
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[11.5px] text-[#64748b]">
+                    <span>사내망에 켜져 있는 서버를 자동으로 찾습니다.</span>
+                    <button
+                      type="button"
+                      disabled={discovering}
+                      onClick={async () => {
+                        setDiscovering(true)
+                        const list = await unifiedApiClient.discoverServers()
+                        setDiscoveredList(list)
+                        setDiscovering(false)
+                        onShowToast(
+                          list.length > 0
+                            ? `사내망에서 가동 중인 민원 서버 ${list.length}대를 찾았습니다.`
+                            : '현재 사내망에서 켜져 있는 서버가 없습니다.'
+                        )
+                      }}
+                      className="px-2 py-0.5 rounded-[5px] bg-white hover:bg-[#eff6ff] border border-[#cbd5e1] text-[#2563eb] font-bold text-[11px] cursor-pointer"
                     >
-                      <span className="font-bold text-[#2563eb] select-all">{url}</span>
+                      {discovering ? '탐색 중...' : '사내망 서버 자동 찾기'}
+                    </button>
+                  </div>
+                  {discoveredList.map((srv) => (
+                    <div
+                      key={srv.url}
+                      className="rounded-[7px] bg-white border border-[#93c5fd] px-3 py-1.5 flex items-center justify-between text-[12px]"
+                    >
+                      <span className="font-bold text-[#1d4ed8]">
+                        발견됨: {srv.serverName} ({srv.url})
+                      </span>
                       <button
                         type="button"
-                        onClick={() => void handleCopyUrl(url)}
-                        className="px-2 py-0.5 rounded-[5px] bg-[#eff6ff] hover:bg-[#dbeafe] text-[#1d4ed8] text-[11px] font-semibold inline-flex items-center gap-1 cursor-pointer"
+                        onClick={() => void handleCopyUrl(srv.url)}
+                        className="px-2 py-0.5 rounded-[5px] bg-[#eff6ff] text-[#1d4ed8] text-[11px] font-semibold cursor-pointer"
                       >
-                        <Copy className="w-3 h-3" />
-                        <span>복사</span>
+                        주소 복사
                       </button>
                     </div>
                   ))}
-                </div>
-              ) : (
-                <div className="text-[11.5px] text-[#64748b] py-1">
-                  서버를 켜면 다른 컴퓨터 접속 주소가 표시됩니다.
                 </div>
               )}
 

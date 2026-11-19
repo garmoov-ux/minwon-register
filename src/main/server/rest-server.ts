@@ -1,9 +1,9 @@
 import http from 'http'
 import fs from 'fs'
 import path from 'path'
-import os from 'os'
 import { RestServerStatus } from '@shared/types/domain'
 import { ApiRouterContext, handleApiRequest } from './api-router'
+import { LanDiscoveryService, listNetworkAdapters } from './lan-discovery'
 import { writeSystemLog } from '../config/file-logger'
 
 const MIME_TYPES: Record<string, string> = {
@@ -17,25 +17,19 @@ const MIME_TYPES: Record<string, string> = {
   '.svg': 'image/svg+xml'
 }
 
-export function getLocalIpv4Urls(port: number): string[] {
-  const urls: string[] = [`http://127.0.0.1:${port}`]
-  try {
-    const interfaces = os.networkInterfaces()
-    for (const name of Object.keys(interfaces)) {
-      for (const iface of interfaces[name] || []) {
-        if (iface.family === 'IPv4' && !iface.internal) {
-          urls.unshift(`http://${iface.address}:${port}`)
-        }
-      }
-    }
-  } catch {
-    // ignore
+export function getLocalIpv4Urls(port: number, bindHost = '0.0.0.0'): string[] {
+  if (bindHost && bindHost !== '0.0.0.0') {
+    return [`http://${bindHost}:${port}`]
   }
+  const adapters = listNetworkAdapters()
+  const urls = adapters.map((a) => `http://${a.address}:${port}`)
+  urls.push(`http://127.0.0.1:${port}`)
   return Array.from(new Set(urls))
 }
 
 export class EmbeddedRestServer {
   private server: http.Server | null = null
+  private discoveryService = new LanDiscoveryService()
   private sseClients = new Set<http.ServerResponse>()
   private running = false
   private port = 8090
@@ -54,7 +48,8 @@ export class EmbeddedRestServer {
       running: this.running,
       port: this.port,
       host: this.host,
-      urls: this.running ? getLocalIpv4Urls(this.port) : [],
+      urls: this.running ? getLocalIpv4Urls(this.port, this.host) : [],
+      adapters: listNetworkAdapters(),
       activeConnections: this.sseClients.size,
       startedAt: this.startedAt,
       totalRequests: this.totalRequests,
@@ -83,7 +78,7 @@ export class EmbeddedRestServer {
     }
 
     this.port = port
-    this.host = host
+    this.host = host || '0.0.0.0'
     this.lastError = null
 
     return new Promise((resolve, reject) => {
@@ -111,14 +106,14 @@ export class EmbeddedRestServer {
         const handled = await handleApiRequest(req, res, this.routerContext)
         if (handled) return
 
-        // 3. 정적 웹 클라이언트(React Renderer) 서빙 (다른 사용자 브라우저 접속 지원)
+        // 3. 정적 웹 클라이언트(React Renderer) 서빙
         this.serveRendererStatic(reqUrl, res)
       })
 
       srv.on('error', (err: Error) => {
         this.lastError = err.message
         this.running = false
-        writeSystemLog('ERROR', `내장 REST API 서버 오류: ${err.message}`)
+        writeSystemLog('ERROR', `내장 다중 접속 서버 오류: ${err.message}`)
         reject(err)
       })
 
@@ -126,10 +121,18 @@ export class EmbeddedRestServer {
         this.server = srv
         this.running = true
         this.startedAt = new Date().toISOString()
-        const urls = getLocalIpv4Urls(this.port)
+
+        // LAN UDP 자동 탐색 응답기 기동 (다른 사용자 컴퓨터에서 접속모드 선택 없이 자동으로 서버를 찾도록 지원)
+        this.discoveryService.startResponder(() => ({
+          running: this.running,
+          port: this.port,
+          bindHost: this.host
+        }))
+
+        const urls = getLocalIpv4Urls(this.port, this.host)
         writeSystemLog(
           'INFO',
-          `다중 접속 REST API 서버가 시작되었습니다. 접속 주소: ${urls.join(', ')}`
+          `다중 접속 서버가 시작되었습니다. 접속 주소: ${urls.join(', ')}`
         )
         resolve(this.getStatus())
       })
@@ -137,6 +140,8 @@ export class EmbeddedRestServer {
   }
 
   async stop(): Promise<RestServerStatus> {
+    this.discoveryService.stopResponder()
+
     for (const client of this.sseClients) {
       try {
         client.end()
@@ -157,7 +162,7 @@ export class EmbeddedRestServer {
         this.server = null
         this.running = false
         this.startedAt = null
-        writeSystemLog('INFO', '다중 접속 REST API 서버가 중지되었습니다.')
+        writeSystemLog('INFO', '다중 접속 서버가 중지되었습니다.')
         resolve(this.getStatus())
       })
     })
@@ -188,10 +193,10 @@ export class EmbeddedRestServer {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
       res.end(`<!DOCTYPE html>
 <html lang="ko">
-<head><meta charset="utf-8"><title>민원접수대장 REST API 서버</title></head>
+<head><meta charset="utf-8"><title>자치경찰 무인교통단속장비 민원접수대장 서버</title></head>
 <body style="font-family: sans-serif; background:#f1f5f9; color:#0f172a; padding:32px;">
-  <h2>무인교통단속장비 민원접수대장 다중 접속 REST API 서버</h2>
-  <p>현재 REST API 엔드포인트(<code>/api/v1/*</code>)가 정상 가동 중입니다.</p>
+  <h2>자치경찰 무인교통단속장비 민원접수대장 다중 접속 서버</h2>
+  <p>현재 다중 접속 서버가 정상 가동 중입니다.</p>
 </body>
 </html>`)
     }

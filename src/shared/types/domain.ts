@@ -173,11 +173,28 @@ export interface MinwonSummaryStats {
   monthlyTrend: Array<{ month: string; receivedCount: number; reviewedCount: number }>
 }
 
+export interface NetworkAdapterItem {
+  name: string
+  address: string
+  netmask: string
+  broadcast: string
+  isVirtual: boolean
+}
+
+export interface DiscoveredMinwonServer {
+  host: string
+  port: number
+  url: string
+  serverName: string
+  adminName: string
+}
+
 export interface RestServerStatus {
   running: boolean
   port: number
   host: string
   urls: string[]
+  adapters: NetworkAdapterItem[]
   activeConnections: number
   startedAt: string | null
   totalRequests: number

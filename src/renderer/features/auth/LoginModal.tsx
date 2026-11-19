@@ -1,7 +1,6 @@
 import React, { useState } from 'react'
 import {
   Briefcase,
-  Globe,
   KeyRound,
   Lock,
   LogIn,
@@ -13,12 +12,7 @@ import {
   X
 } from 'lucide-react'
 import { AuthSession, USER_ROLE_LABELS, UserRole } from '@shared/types/domain'
-import {
-  getClientConnectionConfig,
-  isElectronEnvironment,
-  setClientConnectionConfig,
-  unifiedApiClient
-} from '../../services/api-client'
+import { unifiedApiClient } from '../../services/api-client'
 import { PillButton } from '../../components/ui/PillButton'
 
 interface LoginModalProps {
@@ -55,10 +49,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   onLogout,
   onShowToast
 }) => {
-  const initialConn = getClientConnectionConfig()
-  const [connMode, setConnMode] = useState<'LOCAL' | 'REMOTE'>(initialConn.mode)
-  const [remoteUrl, setRemoteUrl] = useState<string>(initialConn.remoteServerUrl)
-
   const [username, setUsername] = useState<string>(session?.user.username || '')
   const [password, setPassword] = useState<string>('')
   const [errorMsg, setErrorMsg] = useState<string>('')
@@ -82,10 +72,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
     setSubmitting(true)
     setErrorMsg('')
-
-    if (isElectronEnvironment()) {
-      setClientConnectionConfig(connMode, remoteUrl)
-    }
 
     const res = await unifiedApiClient.login({
       username: username.trim(),
@@ -128,7 +114,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-[#090d16]/65 backdrop-blur-xs flex items-center justify-center p-4 select-none">
-      <div className="w-[430px] rounded-[14px] bg-[#ffffff] border border-[#cbd5e1] overflow-hidden apple-product-shadow">
+      <div className="w-[410px] rounded-[14px] bg-[#ffffff] border border-[#cbd5e1] overflow-hidden apple-product-shadow">
         {/* 상단 자치경찰 네이비/골드 헤더 */}
         <div className="bg-[#090d16] text-white px-5 py-4 flex items-center justify-between border-b border-[#1e293b]">
           <div className="flex items-center gap-2.5">
@@ -140,7 +126,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 자치경찰 무인교통단속장비 민원접수대장
               </h2>
               <p className="text-[11px] text-slate-400 mt-0.5">
-                사용자 인증 및 다중 접속 서버 연동
+                계정 로그인 (최고관리자 · 관리자 · 사용자 자동 식별)
               </p>
             </div>
           </div>
@@ -273,59 +259,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             </form>
           )}
 
-          {/* 로그인 입력 폼 */}
+          {/* 깔끔한 아이디 / 비밀번호 로그인 입력 폼 */}
           {!changingPw && (
             <form onSubmit={(e) => void handleLoginSubmit(e)} className="space-y-3.5">
-              {isElectronEnvironment() && (
-                <div className="rounded-[9px] border border-[#cbd5e1] bg-[#f8fafc] p-2.5 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11.5px] font-bold text-[#334155] inline-flex items-center gap-1">
-                      <Globe className="w-3.5 h-3.5 text-[#2563eb]" />
-                      접속 모드 선택
-                    </span>
-                    <div className="inline-flex rounded-[6px] border border-[#cbd5e1] bg-white p-0.5">
-                      <button
-                        type="button"
-                        onClick={() => setConnMode('LOCAL')}
-                        className={`px-2.5 py-1 rounded-[5px] text-[11px] font-semibold cursor-pointer ${
-                          connMode === 'LOCAL'
-                            ? 'bg-[#2563eb] text-white'
-                            : 'text-[#64748b] hover:text-[#0f172a]'
-                        }`}
-                      >
-                        내 컴퓨터 로컬 대장
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConnMode('REMOTE')}
-                        className={`px-2.5 py-1 rounded-[5px] text-[11px] font-semibold cursor-pointer ${
-                          connMode === 'REMOTE'
-                            ? 'bg-[#2563eb] text-white'
-                            : 'text-[#64748b] hover:text-[#0f172a]'
-                        }`}
-                      >
-                        다중 접속 서버 연결
-                      </button>
-                    </div>
-                  </div>
-
-                  {connMode === 'REMOTE' && (
-                    <div>
-                      <label className="block text-[11px] text-[#64748b] mb-1">
-                        접속할 민원접수대장 서버 주소
-                      </label>
-                      <input
-                        type="text"
-                        value={remoteUrl}
-                        onChange={(e) => setRemoteUrl(e.target.value)}
-                        placeholder="예: http://192.168.0.10:8090"
-                        className="w-full h-[30px] px-2.5 rounded-[6px] border border-[#cbd5e1] bg-white text-[12px] text-[#0f172a] focus:outline-2 focus:outline-[#2563eb]"
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-
               <div>
                 <label className="block text-[12px] font-semibold text-[#334155] mb-1">
                   아이디
@@ -382,7 +318,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   className="w-full"
                 >
                   <LogIn className="w-4 h-4" />
-                  <span>{submitting ? '인증 확인 중...' : '민원접수대장 로그인'}</span>
+                  <span>{submitting ? '로그인 및 서버 확인 중...' : '민원접수대장 로그인'}</span>
                 </PillButton>
               </div>
             </form>

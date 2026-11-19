@@ -93,8 +93,21 @@ export const minwonApi = {
   exportDeviceStatsExcel: (): Promise<ActionResult<{ filePath: string }>> =>
     ipcRenderer.invoke(IPC_CHANNELS.EXPORT_DEVICE_STATS_EXCEL),
 
-  toggleServer: (params: { enabled: boolean; port?: number }): Promise<ActionResult> =>
-    ipcRenderer.invoke(IPC_CHANNELS.SERVER_TOGGLE, params),
+  toggleServer: (params: {
+    enabled: boolean
+    port?: number
+    host?: string
+  }): Promise<ActionResult> => ipcRenderer.invoke(IPC_CHANNELS.SERVER_TOGGLE, params),
+
+  discoverServers: (): Promise<
+    Array<{
+      host: string
+      port: number
+      url: string
+      serverName: string
+      adminName: string
+    }>
+  > => ipcRenderer.invoke(IPC_CHANNELS.SERVER_DISCOVER),
 
   updateConfig: (config: AppConfig): Promise<ActionResult> =>
     ipcRenderer.invoke(IPC_CHANNELS.CONFIG_UPDATE, config),

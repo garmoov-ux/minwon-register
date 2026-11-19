@@ -31,8 +31,9 @@ export const IPC_CHANNELS = {
   EXPORT_MINWON_EXCEL: 'minwon:export-minwon-excel',
   EXPORT_DEVICE_STATS_EXCEL: 'minwon:export-device-stats-excel',
 
-  // 내장 REST API 서버 제어 및 설정
+  // 내장 REST API 서버 제어 및 자동 탐색
   SERVER_TOGGLE: 'minwon:server-toggle',
+  SERVER_DISCOVER: 'minwon:server-discover',
   CONFIG_UPDATE: 'minwon:config-update',
   OPEN_FOLDER: 'minwon:open-folder'
 } as const

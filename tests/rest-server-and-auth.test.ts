@@ -6,6 +6,7 @@ import { MinwonRepository } from '../src/main/db/minwon-repo'
 import { DeviceRepository } from '../src/main/db/device-repo'
 import { CodeRepository } from '../src/main/db/code-repo'
 import { EmbeddedRestServer } from '../src/main/server/rest-server'
+import { discoverLanMinwonServers, listNetworkAdapters } from '../src/main/server/lan-discovery'
 
 describe('내장 다중 사용자 서버 및 3단계 권한(최고관리자·관리자·사용자) 통합 테스트', () => {
   const csvPath = path.resolve(__dirname, '../_ref_VBA/device.csv')
@@ -123,5 +124,14 @@ describe('내장 다중 사용자 서버 및 3단계 권한(최고관리자·관
       })
     })
     expect(forbiddenUserAdd.status).toBe(403)
+  })
+
+  it('3. 다중 랜카드 물리/가상 어댑터 정렬 및 사내망 UDP 브로드캐스트 서버 자동 탐색 검증', async () => {
+    const adapters = listNetworkAdapters()
+    expect(Array.isArray(adapters)).toBe(true)
+
+    const discovered = await discoverLanMinwonServers(18096, 400)
+    expect(discovered.length).toBeGreaterThanOrEqual(1)
+    expect(discovered[0].port).toBe(18096)
   })
 })
