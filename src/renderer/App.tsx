@@ -198,6 +198,7 @@ export const App: React.FC = () => {
                 setEditingRecord(null)
                 setActiveTab('ledger')
               }}
+              onSelectRecord={(rec) => setEditingRecord(rec)}
               onClearInitial={() => setEditingRecord(null)}
               onBackToLedger={() => setActiveTab('ledger')}
             />

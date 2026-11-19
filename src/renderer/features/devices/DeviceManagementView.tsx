@@ -320,7 +320,7 @@ export const DeviceManagementView: React.FC<DeviceManagementViewProps> = ({
               </table>
             </div>
 
-            {/* 하단 시각화 차트 2종 (엑셀 내보내기 시 함께 삽입되는 차트 미리보기) */}
+            {/* 하단 시각화 차트 2종 (마우스 호버 시 연도별 세부 대수 툴팁 즉시 표시) */}
             <div className="grid grid-cols-2 gap-3 pt-1">
               {/* 차트 1: 설치년도별 보호구역 단속장비 현황 */}
               <div className="rounded-[8px] border border-[#cbd5e1] bg-[#f8fafc] p-3">
@@ -340,7 +340,7 @@ export const DeviceManagementView: React.FC<DeviceManagementViewProps> = ({
                     </span>
                   </div>
                 </div>
-                <div className="h-[115px] flex items-end gap-1.5 pt-3 pb-1 px-1 border-b border-[#cbd5e1]">
+                <div className="h-[125px] flex items-end gap-1.5 pt-4 pb-1 px-1 border-b border-[#cbd5e1]">
                   {deviceStats.rows.map((r) => {
                     const maxVal = Math.max(
                       1,
@@ -348,30 +348,62 @@ export const DeviceManagementView: React.FC<DeviceManagementViewProps> = ({
                         Math.max(x.zoneGeneral, x.zoneChild, x.zoneElder, 1)
                       )
                     )
-                    const gH = Math.round((r.zoneGeneral / maxVal) * 78)
-                    const cH = Math.round((r.zoneChild / maxVal) * 78)
-                    const eH = Math.round((r.zoneElder / maxVal) * 78)
+                    const gH = Math.round((r.zoneGeneral / maxVal) * 76)
+                    const cH = Math.round((r.zoneChild / maxVal) * 76)
+                    const eH = Math.round((r.zoneElder / maxVal) * 76)
                     return (
                       <div
                         key={r.installYear}
-                        className="flex-1 flex flex-col items-center justify-end gap-1"
-                        title={`${r.installYear}년: 일반 ${r.zoneGeneral} / 어린이 ${r.zoneChild} / 노인 ${r.zoneElder}`}
+                        className="group relative flex-1 flex flex-col items-center justify-end gap-1 rounded-[5px] py-0.5 hover:bg-[#e2e8f0]/60 transition-colors cursor-pointer"
                       >
-                        <div className="w-full flex items-end justify-center gap-0.5 h-[80px]">
+                        {/* 마우스 호버 시 즉시 표시되는 플로팅 값 툴팁 */}
+                        <div className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-100 absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 z-30 w-[148px] rounded-[7px] bg-[#090d16] text-white p-2 text-[11px] border border-[#334155] apple-product-shadow">
+                          <div className="font-extrabold text-[#38bdf8] border-b border-[#1e293b] pb-1 mb-1 flex items-center justify-between">
+                            <span>{r.installYear}년</span>
+                            <span>총 {r.totalCount}대</span>
+                          </div>
+                          <div className="space-y-0.5">
+                            <div className="flex justify-between">
+                              <span className="text-slate-300">일반구역</span>
+                              <span className="font-bold">{r.zoneGeneral}대</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-[#fcd34d]">어린이보호구역</span>
+                              <span className="font-bold text-[#fcd34d]">{r.zoneChild}대</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-[#6ee7b7]">노인보호구역</span>
+                              <span className="font-bold text-[#6ee7b7]">{r.zoneElder}대</span>
+                            </div>
+                            {r.zoneDisabled > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-[#d8b4fe]">장애인보호구역</span>
+                                <span className="font-bold text-[#d8b4fe]">{r.zoneDisabled}대</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <span className="text-[9.5px] font-extrabold text-[#1d4ed8] leading-none">
+                          {r.totalCount}
+                        </span>
+                        <div className="w-full flex items-end justify-center gap-0.5 h-[76px]">
                           <div
-                            className="w-2 bg-[#2563eb] rounded-t-[2px]"
+                            className="w-2 bg-[#2563eb] group-hover:brightness-110 rounded-t-[2px]"
                             style={{ height: `${Math.max(r.zoneGeneral > 0 ? 3 : 0, gH)}px` }}
                           />
                           <div
-                            className="w-2 bg-[#d97706] rounded-t-[2px]"
+                            className="w-2 bg-[#d97706] group-hover:brightness-110 rounded-t-[2px]"
                             style={{ height: `${Math.max(r.zoneChild > 0 ? 3 : 0, cH)}px` }}
                           />
                           <div
-                            className="w-2 bg-[#059669] rounded-t-[2px]"
+                            className="w-2 bg-[#059669] group-hover:brightness-110 rounded-t-[2px]"
                             style={{ height: `${Math.max(r.zoneElder > 0 ? 3 : 0, eH)}px` }}
                           />
                         </div>
-                        <span className="text-[10px] font-bold text-[#475569]">{r.installYear}</span>
+                        <span className="text-[10px] font-bold text-[#475569] group-hover:text-[#0f172a]">
+                          {r.installYear}
+                        </span>
                       </div>
                     )
                   })}
@@ -396,7 +428,7 @@ export const DeviceManagementView: React.FC<DeviceManagementViewProps> = ({
                     </span>
                   </div>
                 </div>
-                <div className="h-[115px] flex items-end gap-1.5 pt-3 pb-1 px-1 border-b border-[#cbd5e1]">
+                <div className="h-[125px] flex items-end gap-1.5 pt-4 pb-1 px-1 border-b border-[#cbd5e1]">
                   {deviceStats.rows.map((r) => {
                     const maxVal = Math.max(
                       1,
@@ -404,32 +436,62 @@ export const DeviceManagementView: React.FC<DeviceManagementViewProps> = ({
                         Math.max(x.fixedSignalSpeed, x.fixedSpeed, x.fixedSection + x.mobileSpeed, 1)
                       )
                     )
-                    const sH = Math.round((r.fixedSignalSpeed / maxVal) * 78)
-                    const fH = Math.round((r.fixedSpeed / maxVal) * 78)
-                    const mH = Math.round(((r.fixedSection + r.mobileSpeed) / maxVal) * 78)
+                    const sH = Math.round((r.fixedSignalSpeed / maxVal) * 76)
+                    const fH = Math.round((r.fixedSpeed / maxVal) * 76)
+                    const mH = Math.round(((r.fixedSection + r.mobileSpeed) / maxVal) * 76)
                     return (
                       <div
                         key={r.installYear}
-                        className="flex-1 flex flex-col items-center justify-end gap-1"
-                        title={`${r.installYear}년: 신호과속 ${r.fixedSignalSpeed} / 과속(고) ${r.fixedSpeed} / 구간·이동 ${r.fixedSection + r.mobileSpeed}`}
+                        className="group relative flex-1 flex flex-col items-center justify-end gap-1 rounded-[5px] py-0.5 hover:bg-[#e2e8f0]/60 transition-colors cursor-pointer"
                       >
-                        <div className="w-full flex items-end justify-center gap-0.5 h-[80px]">
+                        {/* 마우스 호버 시 즉시 표시되는 플로팅 값 툴팁 */}
+                        <div className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-100 absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 z-30 w-[148px] rounded-[7px] bg-[#090d16] text-white p-2 text-[11px] border border-[#334155] apple-product-shadow">
+                          <div className="font-extrabold text-[#38bdf8] border-b border-[#1e293b] pb-1 mb-1 flex items-center justify-between">
+                            <span>{r.installYear}년</span>
+                            <span>총 {r.totalCount}대</span>
+                          </div>
+                          <div className="space-y-0.5">
+                            <div className="flex justify-between">
+                              <span className="text-slate-300">신호과속(고)</span>
+                              <span className="font-bold">{r.fixedSignalSpeed}대</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-[#38bdf8]">과속(고)</span>
+                              <span className="font-bold text-[#38bdf8]">{r.fixedSpeed}대</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-[#6ee7b7]">구간단속(고)</span>
+                              <span className="font-bold text-[#6ee7b7]">{r.fixedSection}대</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-[#fcd34d]">과속(이동식)</span>
+                              <span className="font-bold text-[#fcd34d]">{r.mobileSpeed}대</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <span className="text-[9.5px] font-extrabold text-[#1d4ed8] leading-none">
+                          {r.totalCount}
+                        </span>
+                        <div className="w-full flex items-end justify-center gap-0.5 h-[76px]">
                           <div
-                            className="w-2 bg-[#1d4ed8] rounded-t-[2px]"
+                            className="w-2 bg-[#1d4ed8] group-hover:brightness-110 rounded-t-[2px]"
                             style={{ height: `${Math.max(r.fixedSignalSpeed > 0 ? 3 : 0, sH)}px` }}
                           />
                           <div
-                            className="w-2 bg-[#0284c7] rounded-t-[2px]"
+                            className="w-2 bg-[#0284c7] group-hover:brightness-110 rounded-t-[2px]"
                             style={{ height: `${Math.max(r.fixedSpeed > 0 ? 3 : 0, fH)}px` }}
                           />
                           <div
-                            className="w-2 bg-[#0d9488] rounded-t-[2px]"
+                            className="w-2 bg-[#0d9488] group-hover:brightness-110 rounded-t-[2px]"
                             style={{
                               height: `${Math.max(r.fixedSection + r.mobileSpeed > 0 ? 3 : 0, mH)}px`
                             }}
                           />
                         </div>
-                        <span className="text-[10px] font-bold text-[#475569]">{r.installYear}</span>
+                        <span className="text-[10px] font-bold text-[#475569] group-hover:text-[#0f172a]">
+                          {r.installYear}
+                        </span>
                       </div>
                     )
                   })}

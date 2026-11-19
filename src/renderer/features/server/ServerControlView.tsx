@@ -42,8 +42,8 @@ interface ServerControlViewProps {
 }
 
 const ROLE_DESCRIPTION: Record<UserRole, string> = {
-  SUPER_ADMIN: '최고관리자 (서버 제어 · 관리자 지정 · 전체 관리)',
-  ADMIN: '관리자 (지정된 1명 서버 켜기/끄기 가능)',
+  SUPER_ADMIN: '최고관리자 (서버 제어 · 관리자 지정 · 전체 계정 관리)',
+  ADMIN: '관리자 (사용자 계정 추가·제거 및 서버 켜기/끄기 제어)',
   USER: '사용자 (민원접수대장 등록/수정/조회)'
 }
 
@@ -477,26 +477,28 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
                         서버 관리자 지정
                       </PillButton>
                     )}
-                    <PillButton
-                      variant="pearl-capsule"
-                      size="sm"
-                      onClick={() =>
-                        setEditingUser({
-                          username: u.username,
-                          password: '',
-                          displayName: u.displayName,
-                          jobTitle: u.jobTitle,
-                          email: u.email,
-                          contact: u.contact,
-                          role: u.role,
-                          canToggleServer: u.canToggleServer,
-                          active: u.active
-                        })
-                      }
-                    >
-                      수정
-                    </PillButton>
-                    {isSuperAdmin && u.username !== 'admin' && (
+                    {(isSuperAdmin || u.role !== 'SUPER_ADMIN') && (
+                      <PillButton
+                        variant="pearl-capsule"
+                        size="sm"
+                        onClick={() =>
+                          setEditingUser({
+                            username: u.username,
+                            password: '',
+                            displayName: u.displayName,
+                            jobTitle: u.jobTitle,
+                            email: u.email,
+                            contact: u.contact,
+                            role: u.role,
+                            canToggleServer: u.canToggleServer,
+                            active: u.active
+                          })
+                        }
+                      >
+                        수정
+                      </PillButton>
+                    )}
+                    {u.username !== 'admin' && (isSuperAdmin || u.role !== 'SUPER_ADMIN') && (
                       <button
                         type="button"
                         onClick={() => void handleDeleteUser(u.username)}
@@ -623,7 +625,9 @@ export const ServerControlView: React.FC<ServerControlViewProps> = ({
                   }}
                   className="w-full h-[32px] px-2.5 rounded-[6px] border border-[#cbd5e1] disabled:bg-[#e2e8f0]"
                 >
-                  <option value="SUPER_ADMIN">{ROLE_DESCRIPTION.SUPER_ADMIN}</option>
+                  {isSuperAdmin && (
+                    <option value="SUPER_ADMIN">{ROLE_DESCRIPTION.SUPER_ADMIN}</option>
+                  )}
                   <option value="ADMIN">{ROLE_DESCRIPTION.ADMIN}</option>
                   <option value="USER">{ROLE_DESCRIPTION.USER}</option>
                 </select>

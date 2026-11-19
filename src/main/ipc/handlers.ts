@@ -232,8 +232,12 @@ export function registerIpcHandlers(ctx: IpcContext): void {
     IPC_CHANNELS.USER_DELETE,
     (_e, username: string): ActionResult => {
       const actor = ctx.getCurrentUser()
-      if (actor && actor.role !== 'SUPER_ADMIN') {
-        return { ok: false, message: '사용자 계정 삭제는 최고관리자만 가능합니다.' }
+      if (actor && actor.role === 'USER') {
+        return { ok: false, message: '사용자 계정 삭제는 최고관리자 또는 관리자만 가능합니다.' }
+      }
+      const target = ctx.userRepo.getUserByUsername(username)
+      if (actor && actor.role === 'ADMIN' && target?.role === 'SUPER_ADMIN') {
+        return { ok: false, message: '관리자는 최고관리자 계정을 삭제할 수 없습니다.' }
       }
       const ok = ctx.userRepo.deleteUser(username)
       if (!ok) {

@@ -368,11 +368,16 @@ export async function handleApiRequest(
     }
 
     if (pathname.startsWith('/api/v1/users/') && method === 'DELETE') {
-      if (tokenPayload.role !== 'SUPER_ADMIN') {
-        sendJson(res, 403, { ok: false, message: '사용자 계정 삭제는 최고관리자만 가능합니다.' })
+      if (tokenPayload.role === 'USER') {
+        sendJson(res, 403, { ok: false, message: '사용자 계정 삭제는 최고관리자 또는 관리자만 가능합니다.' })
         return true
       }
       const username = decodeURIComponent(pathname.replace('/api/v1/users/', ''))
+      const target = ctx.userRepo.getUserByUsername(username)
+      if (tokenPayload.role === 'ADMIN' && target?.role === 'SUPER_ADMIN') {
+        sendJson(res, 403, { ok: false, message: '관리자는 최고관리자 계정을 삭제할 수 없습니다.' })
+        return true
+      }
       const ok = ctx.userRepo.deleteUser(username)
       ctx.onStateMutated()
       sendJson(res, 200, {

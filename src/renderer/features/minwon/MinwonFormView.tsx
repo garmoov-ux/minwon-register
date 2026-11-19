@@ -29,6 +29,7 @@ interface MinwonFormViewProps {
   canWrite: boolean
   onSaveRecord: (payload: MinwonUpsertPayload) => Promise<boolean>
   onDeleteRecord: (id: number) => Promise<void>
+  onSelectRecord?: (rec: MinwonRecord) => void
   onClearInitial: () => void
   onBackToLedger: () => void
 }
@@ -49,6 +50,7 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
   canWrite,
   onSaveRecord,
   onDeleteRecord,
+  onSelectRecord,
   onClearInitial,
   onBackToLedger
 }) => {
@@ -106,28 +108,28 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
   }, [])
 
   useEffect(() => {
-    setEditingTarget(initialRecord)
     if (initialRecord) {
+      setEditingTarget(initialRecord)
       setId(initialRecord.id)
-      setReceivedDate(initialRecord.receivedDate)
-      setReceptionType(initialRecord.receptionType)
-      setReceptionNo(initialRecord.receptionNo)
-      setComplainantName(initialRecord.complainantName)
-      setContact(initialRecord.contact)
-      setLocation(initialRecord.location)
-      setZoneType(initialRecord.zoneType)
-      setContent(initialRecord.content)
-      setReviewDate(initialRecord.reviewDate)
-      setReviewResult(initialRecord.reviewResult)
-      setImprovementResult(initialRecord.improvementResult)
-      setNote(initialRecord.note)
+      setReceivedDate(initialRecord.receivedDate || todayStr)
+      setReceptionType(initialRecord.receptionType || '국민신문고')
+      setReceptionNo(initialRecord.receptionNo || String(initialRecord.id))
+      setComplainantName(initialRecord.complainantName || '')
+      setContact(initialRecord.contact || '')
+      setLocation(initialRecord.location || '')
+      setZoneType(initialRecord.zoneType || '일반구역')
+      setContent(initialRecord.content || '')
+      setReviewDate(initialRecord.reviewDate || '')
+      setReviewResult(initialRecord.reviewResult || '대기중')
+      setImprovementResult(initialRecord.improvementResult || '')
+      setNote(initialRecord.note || '')
       setSelectedRefId(initialRecord.id)
-    } else {
+    } else if (!editingTarget) {
       setId(nextSuggestedId)
       setReceptionNo(generateJspdDocumentNo(receivedDate, allMinwonRecords))
       setSelectedRefId(null)
     }
-  }, [initialRecord, nextSuggestedId])
+  }, [initialRecord])
 
   const handleReceivedDateChange = (nextDate: string): void => {
     setReceivedDate(nextDate)
@@ -162,13 +164,12 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
    */
   const handleSelectExistingRecord = (rec: MinwonRecord): void => {
     setEditingTarget(rec)
+    onSelectRecord?.(rec)
     setSelectedRefId(rec.id)
     setId(rec.id)
     setReceivedDate(rec.receivedDate || todayStr)
     setReceptionType(rec.receptionType || '국민신문고')
-    setReceptionNo(
-      rec.receptionNo || generateJspdDocumentNo(rec.receivedDate || todayStr, allMinwonRecords)
-    )
+    setReceptionNo(rec.receptionNo || String(rec.id))
     setComplainantName(rec.complainantName || '')
     setContact(rec.contact || '')
     setLocation(rec.location || '')
@@ -184,6 +185,7 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
    * 선택한 기존 민원의 내용을 그대로 가져오되, 신규 등록용 연번과 JSPD 문서번호로 채번한다.
    */
   const handleCloneAsNew = (rec: MinwonRecord): void => {
+    onClearInitial()
     setEditingTarget(null)
     setSelectedRefId(rec.id)
     setId(nextSuggestedId)
