@@ -35,6 +35,54 @@ export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<NavTabId>('ledger')
   const [editingRecord, setEditingRecord] = useState<MinwonRecord | null>(null)
 
+  const autoLogoutEnabled = Boolean(snapshot?.config?.system?.autoLogoutEnabled ?? true)
+  const autoLogoutSeconds = Math.max(
+    10,
+    Number(snapshot?.config?.system?.autoLogoutSeconds || 600)
+  )
+
+  // 무동작 자동 로그아웃 타이머 (모든 React Hook은 조건부 return 이전에 선언되어야 함)
+  useEffect(() => {
+    if (!session || !autoLogoutEnabled) return
+
+    let timeoutId: NodeJS.Timeout | null = null
+    let lastResetMs = 0
+
+    const triggerAutoLogout = (): void => {
+      void handleLogout()
+      setLoginModalOpen(true)
+      showToast(`장시간(${autoLogoutSeconds}초) 사용 이벤트가 없어 보안상 자동 로그아웃되었습니다.`)
+    }
+
+    const resetTimer = (): void => {
+      const now = Date.now()
+      if (now - lastResetMs < 500) return
+      lastResetMs = now
+      if (timeoutId) clearTimeout(timeoutId)
+      timeoutId = setTimeout(triggerAutoLogout, autoLogoutSeconds * 1000)
+    }
+
+    resetTimer()
+    const events: Array<keyof WindowEventMap> = [
+      'mousemove',
+      'mousedown',
+      'keydown',
+      'wheel',
+      'touchstart',
+      'click'
+    ]
+    for (const ev of events) {
+      window.addEventListener(ev, resetTimer, { passive: true })
+    }
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId)
+      for (const ev of events) {
+        window.removeEventListener(ev, resetTimer)
+      }
+    }
+  }, [session, autoLogoutEnabled, autoLogoutSeconds])
+
   if (loading && !snapshot) {
     return (
       <div className="h-screen w-screen overflow-hidden bg-[#f1f5f9] flex items-center justify-center text-[#0f172a] select-none">
@@ -124,51 +172,6 @@ export const App: React.FC = () => {
     currentUser && (currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ADMIN')
   )
   const canWrite = Boolean(currentUser)
-
-  // 무동작 자동 로그아웃 타이머 (설정된 초 동안 마우스/키보드 이벤트가 없을 때 자동 로그아웃)
-  const autoLogoutEnabled = Boolean(safeSnapshot.config.system.autoLogoutEnabled)
-  const autoLogoutSeconds = Math.max(10, Number(safeSnapshot.config.system.autoLogoutSeconds || 600))
-
-  useEffect(() => {
-    if (!session || !autoLogoutEnabled) return
-
-    let timeoutId: NodeJS.Timeout | null = null
-    let lastResetMs = 0
-
-    const triggerAutoLogout = (): void => {
-      void handleLogout()
-      setLoginModalOpen(true)
-      showToast(`장시간(${autoLogoutSeconds}초) 사용 이벤트가 없어 보안상 자동 로그아웃되었습니다.`)
-    }
-
-    const resetTimer = (): void => {
-      const now = Date.now()
-      if (now - lastResetMs < 500) return
-      lastResetMs = now
-      if (timeoutId) clearTimeout(timeoutId)
-      timeoutId = setTimeout(triggerAutoLogout, autoLogoutSeconds * 1000)
-    }
-
-    resetTimer()
-    const events: Array<keyof WindowEventMap> = [
-      'mousemove',
-      'mousedown',
-      'keydown',
-      'wheel',
-      'touchstart',
-      'click'
-    ]
-    for (const ev of events) {
-      window.addEventListener(ev, resetTimer, { passive: true })
-    }
-
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId)
-      for (const ev of events) {
-        window.removeEventListener(ev, resetTimer)
-      }
-    }
-  }, [session, autoLogoutEnabled, autoLogoutSeconds])
 
   const handleGoNewRegister = (): void => {
     setEditingRecord(null)
