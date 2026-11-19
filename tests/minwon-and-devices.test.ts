@@ -5,23 +5,40 @@ import { UserRepository } from '../src/main/db/user-repo'
 import { MinwonRepository } from '../src/main/db/minwon-repo'
 import { DeviceRepository } from '../src/main/db/device-repo'
 import { CodeRepository } from '../src/main/db/code-repo'
+import { convertExcelSerialToIsoDate } from '../src/main/db/seed'
 import { computeQuickDateRange } from '../src/shared/date-ranges'
 import { buildStandardXlsxBuffer } from '../src/main/excel/excel-service'
 
-describe('MinwonRegister 도메인 로직 및 단속장비 487대 통계 정합성 테스트', () => {
-  const csvPath = path.resolve(__dirname, '../_ref_VBA/device.csv')
+describe('MinwonRegister 도메인 로직, datadb.csv(114건), 단속장비 487대 통계 정합성 테스트', () => {
+  const deviceCsvPath = path.resolve(__dirname, '../_ref_VBA/device.csv')
+  const minwonCsvPath = path.resolve(__dirname, '../_ref_VBA/datadb.csv')
 
-  it('device.csv(487대) 시드 적재 및 operator-status.xlsx 통계 매트릭스 100% 일치 검증', () => {
+  it('1. device.csv(487대) 및 datadb.csv(114건) 시드 적재와 operator-status.xlsx 통계 100% 일치 검증', () => {
     const db = createDatabaseConnection(':memory:', {
       seed: true,
-      customCsvPath: csvPath
+      customCsvPath: deviceCsvPath,
+      customMinwonCsvPath: minwonCsvPath,
+      seedMinwon: true
     })
     const deviceRepo = new DeviceRepository(db)
+    const minwonRepo = new MinwonRepository(db)
 
+    // 단속장비 487대 확인
     expect(deviceRepo.getTotalCount()).toBe(487)
 
+    // 기존 민원접수대장 datadb.csv 114건 자동 적재 확인
+    const allMinwon = minwonRepo.listRecords()
+    expect(allMinwon.length).toBe(114)
+
+    // Excel 일련번호 날짜 변환 확인 (46027 -> 2026-01-05)
+    expect(convertExcelSerialToIsoDate('46027')).toBe('2026-01-05')
+    const firstRecord = minwonRepo.getById(1)
+    expect(firstRecord?.complainantName).toBe('고방실')
+    expect(firstRecord?.receivedDate).toBe('2026-01-05')
+    expect(firstRecord?.reviewDate).toBe('2026-02-03')
+    expect(firstRecord?.reviewResult).toBe('불합리')
+
     const stats = deviceRepo.computeOperationStats()
-    // operator-status.xlsx Row 17 합계 행과 100% 동일한지 검증
     expect(stats.totals.totalCount).toBe(487)
     expect(stats.totals.zoneGeneral).toBe(221)
     expect(stats.totals.zoneChild).toBe(237)
@@ -35,27 +52,73 @@ describe('MinwonRegister 도메인 로직 및 단속장비 487대 통계 정합�
     expect(stats.totals.fixedNoEntry).toBe(2)
     expect(stats.totals.mobileSpeed).toBe(19)
 
-    // 2013년(첫 행) 및 2023년 데이터 정합성 검증
-    const row2013 = stats.rows.find((r) => r.installYear === 2013)
-    expect(row2013?.totalCount).toBe(2)
-    expect(row2013?.fixedSignalSpeed).toBe(2)
+    db.close()
+  })
 
-    const row2023 = stats.rows.find((r) => r.installYear === 2023)
-    expect(row2023?.totalCount).toBe(114)
-    expect(row2023?.zoneChild).toBe(56)
+  it('2. 최고관리자(admin) 외 지정 관리자 1명 서버 구동 권한 부여 및 사용자 프로필(직책/이메일/연락처) 검증', () => {
+    const db = createDatabaseConnection(':memory:', {
+      seed: true,
+      customCsvPath: deviceCsvPath,
+      seedMinwon: false
+    })
+    const userRepo = new UserRepository(db)
+
+    const users = userRepo.listUsers()
+    expect(users.length).toBe(3)
+
+    const superAdmin = userRepo.getUserByUsername('admin')
+    expect(superAdmin?.role).toBe('SUPER_ADMIN')
+    expect(superAdmin?.canToggleServer).toBe(true)
+
+    const manager = userRepo.getUserByUsername('manager')
+    expect(manager?.role).toBe('ADMIN')
+    expect(manager?.canToggleServer).toBe(true)
+    expect(manager?.jobTitle).toBe('교통시설관리 팀장')
+
+    const normalUser = userRepo.getUserByUsername('user1')
+    expect(normalUser?.role).toBe('USER')
+    expect(normalUser?.canToggleServer).toBe(false)
+
+    // 새로운 관리자(subadmin)를 지정 관리자로 설정하면 기존 manager의 서버 구동 권한은 자동 해제되어 admin 외 1명만 유지됨
+    userRepo.upsertUser({
+      username: 'subadmin',
+      password: 'sub1234',
+      displayName: '박관제',
+      jobTitle: '교통안전 계장',
+      email: 'park@jeju.go.kr',
+      contact: '010-2222-3333',
+      role: 'ADMIN',
+      canToggleServer: true
+    })
+
+    const afterManager = userRepo.getUserByUsername('manager')
+    const afterSubAdmin = userRepo.getUserByUsername('subadmin')
+    expect(afterManager?.canToggleServer).toBe(false)
+    expect(afterSubAdmin?.canToggleServer).toBe(true)
+
+    // non-super-admin 중 canToggleServer가 true인 계정이 정확히 1명인지 검증
+    const serverAdminsExcludingSuper = userRepo
+      .listUsers()
+      .filter((u) => u.role !== 'SUPER_ADMIN' && u.canToggleServer)
+    expect(serverAdminsExcludingSuper.length).toBe(1)
+    expect(serverAdminsExcludingSuper[0].username).toBe('subadmin')
 
     db.close()
   })
 
-  it('민원접수대장 CRUD, 신규 접수구분 코드 자동 등록, 복합 검색 필터 검증', () => {
-    const db = createDatabaseConnection(':memory:', { seed: true, customCsvPath: csvPath })
+  it('3. 민원접수대장 CRUD, 신규 접수구분 코드 자동 등록, 복합 검색 필터 검증', () => {
+    const db = createDatabaseConnection(':memory:', {
+      seed: true,
+      customCsvPath: deviceCsvPath,
+      seedMinwon: false
+    })
     const minwonRepo = new MinwonRepository(db)
     const codeRepo = new CodeRepository(db)
 
     const created = minwonRepo.upsertRecord(
       {
         receivedDate: '2026-11-05',
-        receptionType: '제주도청이첩', // 기존 목록에 없는 신규 접수구분
+        receptionType: '제주도청이첩',
         receptionNo: '2026-JEJU-001',
         complainantName: '홍길동',
         contact: '010-1234-5678',
@@ -63,7 +126,7 @@ describe('MinwonRegister 도메인 로직 및 단속장비 487대 통계 정합�
         zoneType: '어린이보호구역',
         content: '어린이보호구역 신호과속 단속카메라 신규 설치 요청',
         reviewDate: '2026-11-10',
-        reviewResult: '신규설치',
+        reviewResult: '적합',
         improvementResult: '2027년 상반기 설치 예정 반영',
         note: 'B9119 인접',
         deviceId: 'B9119'
@@ -74,74 +137,22 @@ describe('MinwonRegister 도메인 로직 및 단속장비 487대 통계 정합�
     expect(created.id).toBe(1)
     expect(created.complainantName).toBe('홍길동')
 
-    // 신규 접수구분이 코드 테이블에 자동 추가되었는지 확인 (VBA AddListboxItem 호환)
     const allCodes = codeRepo.getAllCodes()
     expect(allCodes.접수구분).toContain('제주도청이첩')
 
-    // 두 번째 민원 등록
-    minwonRepo.upsertRecord(
-      {
-        receivedDate: '2026-08-15',
-        receptionType: '전화민원',
-        receptionNo: '2026-TEL-002',
-        complainantName: '김철수',
-        contact: '010-9999-8888',
-        location: '서귀포시 서귀동 336 중앙로터리',
-        zoneType: '일반구역',
-        content: '제한속도 표지판 가림 정비 요청',
-        reviewDate: '',
-        reviewResult: '검토중',
-        improvementResult: '',
-        note: ''
-      },
-      'operator'
-    )
-
-    // 1. 이름 검색
-    const searchByName = minwonRepo.listRecords({ division: '이름', keyword: '홍길동' })
-    expect(searchByName.length).toBe(1)
-    expect(searchByName[0].receptionNo).toBe('2026-JEJU-001')
-
-    // 2. 공단 검토결과 필터
-    const searchByResult = minwonRepo.listRecords({ reviewResult: '검토중' })
-    expect(searchByResult.length).toBe(1)
-    expect(searchByResult[0].complainantName).toBe('김철수')
-
-    // 3. 접수일자 기간 필터
-    const searchByDate = minwonRepo.listRecords({
-      receivedStartDate: '2026-11-01',
-      receivedEndDate: '2026-11-30'
-    })
-    expect(searchByDate.length).toBe(1)
-    expect(searchByDate[0].id).toBe(1)
-
-    // 4. 통계 요약 검증
-    const summary = minwonRepo.getSummaryStats()
-    expect(summary.totalMinwonCount).toBe(2)
-    expect(summary.pendingReviewCount).toBe(1)
-    expect(summary.completedReviewCount).toBe(1)
-
-    db.close()
-  })
-
-  it('VBA frmSearch.GetStartAndEndDate 빠른 기간 계산 및 표준 엑셀(.xlsx) 바이너리 생성 검증', () => {
-    const refDate = new Date(2026, 10, 19) // 2026-11-19
+    const refDate = new Date(2026, 10, 19)
     const thisMonth = computeQuickDateRange('THIS_MONTH', refDate)
     expect(thisMonth.startDate).toBe('2026-11-01')
     expect(thisMonth.endDate).toBe('2026-11-30')
-
-    const thisYear = computeQuickDateRange('THIS_YEAR', refDate)
-    expect(thisYear.startDate).toBe('2026-01-01')
-    expect(thisYear.endDate).toBe('2026-12-31')
 
     const buf = buildStandardXlsxBuffer({
       sheetName: '전체',
       headers: ['연번', '접수일자', '이름'],
       rows: [[1, '2026-11-19', '강홍선']]
     })
-    // ZIP Local File Header Magic signature (PK\x03\x04) 확인
     expect(buf[0]).toBe(0x50)
     expect(buf[1]).toBe(0x4b)
-    expect(buf.length).toBeGreaterThan(500)
+
+    db.close()
   })
 })

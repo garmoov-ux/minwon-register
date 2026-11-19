@@ -8,12 +8,14 @@ export const IPC_CHANNELS = {
   AUTH_CHANGE_PASSWORD: 'minwon:auth-change-password',
   USER_UPSERT: 'minwon:user-upsert',
   USER_DELETE: 'minwon:user-delete',
+  USER_DESIGNATE_SERVER_ADMIN: 'minwon:user-designate-server-admin',
 
   // 민원접수대장 CRUD 및 검색
   MINWON_LIST: 'minwon:list',
   MINWON_UPSERT: 'minwon:upsert',
   MINWON_DELETE: 'minwon:delete',
   MINWON_RESET_ALL: 'minwon:reset-all',
+  MINWON_RELOAD_CSV: 'minwon:reload-csv',
 
   // 무인교통단속장비 마스터 CRUD 및 통계
   DEVICE_LIST: 'minwon:device-list',

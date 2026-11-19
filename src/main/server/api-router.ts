@@ -140,15 +140,7 @@ export async function handleApiRequest(
     if (isWriteMethod && !ctx.allowRemoteWrite()) {
       sendJson(res, 403, {
         ok: false,
-        message: '현재 서버 설정에서 원격 수정/등록 기능이 읽기 전용으로 제한되어 있습니다.'
-      })
-      return true
-    }
-
-    if (isWriteMethod && tokenPayload.role === 'VIEWER' && pathname !== '/api/v1/auth/password') {
-      sendJson(res, 403, {
-        ok: false,
-        message: '열람자(VIEWER) 권한으로는 데이터를 등록·수정·삭제할 수 없습니다.'
+        message: '현재 서버 설정에서 원격 수정 및 등록 기능이 열람 전용으로 제한되어 있습니다.'
       })
       return true
     }
@@ -330,10 +322,10 @@ export async function handleApiRequest(
       return true
     }
 
-    // 10. 사용자 계정 관리 (ADMIN 전용)
+    // 10. 사용자 계정 관리 (최고관리자 또는 관리자 전용)
     if (pathname === '/api/v1/users' && (method === 'POST' || method === 'PUT')) {
-      if (tokenPayload.role !== 'ADMIN') {
-        sendJson(res, 403, { ok: false, message: '사용자 계정 관리는 관리자(ADMIN)만 가능합니다.' })
+      if (tokenPayload.role === 'USER') {
+        sendJson(res, 403, { ok: false, message: '사용자 계정 관리는 최고관리자 또는 관리자만 가능합니다.' })
         return true
       }
       const body = await readJsonBody<CreateUserPayload>(req)
@@ -341,9 +333,9 @@ export async function handleApiRequest(
       ctx.userRepo.recordAudit({
         username: tokenPayload.username,
         action: '계정 저장',
-        targetType: 'USER',
+        targetType: '사용자',
         targetId: saved.username,
-        detail: `${saved.displayName} (${saved.role}) 계정 등록/수정`,
+        detail: `${saved.displayName} (${saved.jobTitle}) 계정 등록/수정`,
         clientIp
       })
       ctx.onStateMutated()
@@ -355,9 +347,29 @@ export async function handleApiRequest(
       return true
     }
 
+    if (pathname === '/api/v1/users/designate-server-admin' && method === 'POST') {
+      if (tokenPayload.role !== 'SUPER_ADMIN') {
+        sendJson(res, 403, { ok: false, message: '서버 구동 관리자(1명) 지정은 최고관리자만 변경할 수 있습니다.' })
+        return true
+      }
+      const body = await readJsonBody<{ username: string }>(req)
+      const designated = ctx.userRepo.designateServerAdmin(body.username || '')
+      if (!designated) {
+        sendJson(res, 404, { ok: false, message: '지정할 사용자 계정을 찾을 수 없습니다.' })
+        return true
+      }
+      ctx.onStateMutated()
+      sendJson(res, 200, {
+        ok: true,
+        message: `'${designated.displayName} (${designated.username})' 계정이 서버 구동 관리자(1명)로 지정되었습니다.`,
+        data: designated
+      })
+      return true
+    }
+
     if (pathname.startsWith('/api/v1/users/') && method === 'DELETE') {
-      if (tokenPayload.role !== 'ADMIN') {
-        sendJson(res, 403, { ok: false, message: '사용자 계정 삭제는 관리자(ADMIN)만 가능합니다.' })
+      if (tokenPayload.role !== 'SUPER_ADMIN') {
+        sendJson(res, 403, { ok: false, message: '사용자 계정 삭제는 최고관리자만 가능합니다.' })
         return true
       }
       const username = decodeURIComponent(pathname.replace('/api/v1/users/', ''))
@@ -365,7 +377,7 @@ export async function handleApiRequest(
       ctx.onStateMutated()
       sendJson(res, 200, {
         ok,
-        message: ok ? `'${username}' 계정이 삭제되었습니다.` : '기본 관리자 계정은 삭제할 수 없습니다.'
+        message: ok ? `'${username}' 계정이 삭제되었습니다.` : '최고관리자 기본 계정은 삭제할 수 없습니다.'
       })
       return true
     }

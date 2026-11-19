@@ -1,11 +1,20 @@
-export type UserRole = 'ADMIN' | 'OPERATOR' | 'VIEWER'
+export type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'USER'
+
+export const USER_ROLE_LABELS: Record<UserRole, string> = {
+  SUPER_ADMIN: '최고관리자',
+  ADMIN: '관리자',
+  USER: '사용자'
+}
 
 export interface UserAccount {
   id: number
   username: string
   displayName: string
-  department: string
+  jobTitle: string
+  email: string
+  contact: string
   role: UserRole
+  canToggleServer: boolean
   active: boolean
   lastLoginAt: string | null
   createdAt: string
@@ -26,8 +35,11 @@ export interface CreateUserPayload {
   username: string
   password?: string
   displayName: string
-  department: string
+  jobTitle: string
+  email: string
+  contact: string
   role: UserRole
+  canToggleServer?: boolean
   active?: boolean
 }
 
@@ -190,6 +202,7 @@ export interface AppConfig {
     host: string
     autoStartOnBoot: boolean
     allowRemoteWrite: boolean
+    designatedAdminUsername: string
   }
   system: {
     minimizeToTray: boolean

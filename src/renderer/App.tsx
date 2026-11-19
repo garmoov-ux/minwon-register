@@ -39,17 +39,29 @@ export const App: React.FC = () => {
     return (
       <div className="h-screen w-screen overflow-hidden bg-[#f1f5f9] flex items-center justify-center text-[#0f172a] select-none">
         <p className="text-[13.5px] font-semibold">
-          민원접수대장 및 단속장비 운영현황 시스템을 불러오는 중입니다...
+          자치경찰 무인교통단속장비 민원접수대장 시스템을 불러오는 중입니다...
         </p>
       </div>
     )
   }
 
-  // 원격 서버 접속 전 스냅샷이 아직 없을 때를 위한 안전한 기본값
   const safeSnapshot = snapshot || {
     config: {
-      server: { enabled: false, port: 8090, host: '0.0.0.0', autoStartOnBoot: false, allowRemoteWrite: true },
-      system: { minimizeToTray: true, startMinimized: false, requireLoginOnStart: true, autoBackupDaily: true, retentionDays: 365 },
+      server: {
+        enabled: false,
+        port: 8090,
+        host: '0.0.0.0',
+        autoStartOnBoot: false,
+        allowRemoteWrite: true,
+        designatedAdminUsername: 'manager'
+      },
+      system: {
+        minimizeToTray: true,
+        startMinimized: false,
+        requireLoginOnStart: true,
+        autoBackupDaily: true,
+        retentionDays: 365
+      },
       remoteClient: { mode: 'LOCAL' as const, remoteServerUrl: 'http://127.0.0.1:8090' }
     },
     serverStatus: {
@@ -63,9 +75,9 @@ export const App: React.FC = () => {
       lastError: null
     },
     codes: {
-      접수구분: ['국민신문고', '전화민원', '공문접수', '방문민원'],
+      접수구분: ['국민신문고', '전화민원', '공문', '방문민원', '도지사에바란다', '자치도에 바란다'],
       구역구분: ['일반구역', '어린이보호구역', '노인보호구역', '장애인보호구역'],
-      검토결과: ['검토중', '신규설치', '이설검토', '기존운영', '설치불가']
+      검토결과: ['대기중', '적합', '조건부 적합', '부적합', '불합리', '검토완료', '검토불필요', '설치불가']
     },
     minwonSummary: {
       totalMinwonCount: 0,
@@ -99,9 +111,19 @@ export const App: React.FC = () => {
     storageInfo: []
   }
 
-  const userRole = session?.user.role || 'VIEWER'
-  const canWrite = Boolean(session) && (userRole === 'ADMIN' || userRole === 'OPERATOR')
-  const isAdmin = Boolean(session) && userRole === 'ADMIN'
+  const currentUser = session?.user || null
+  const isSuperAdmin = Boolean(currentUser && currentUser.role === 'SUPER_ADMIN')
+  const canManageUsers = Boolean(
+    currentUser && (currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ADMIN')
+  )
+  const canControlServer = Boolean(
+    currentUser &&
+      (currentUser.role === 'SUPER_ADMIN' ||
+        (currentUser.role === 'ADMIN' &&
+          (currentUser.canToggleServer ||
+            currentUser.username === safeSnapshot.config.server.designatedAdminUsername)))
+  )
+  const canWrite = Boolean(currentUser)
 
   const handleGoNewRegister = (): void => {
     setEditingRecord(null)
@@ -124,6 +146,7 @@ export const App: React.FC = () => {
         open={loginModalOpen || (safeSnapshot.config.system.requireLoginOnStart && !session)}
         session={session}
         requireLogin={safeSnapshot.config.system.requireLoginOnStart}
+        designatedAdminUsername={safeSnapshot.config.server.designatedAdminUsername}
         onClose={() => setLoginModalOpen(false)}
         onLoginSuccess={handleLoginSuccess}
         onLogout={() => void handleLogout()}
@@ -136,6 +159,7 @@ export const App: React.FC = () => {
         onSelectTab={setActiveTab}
         serverStatus={safeSnapshot.serverStatus}
         session={session}
+        canControlServer={canControlServer}
         onToggleServer={(next) => void toggleServer(next)}
         onOpenAccountModal={() => setLoginModalOpen(true)}
       />
@@ -211,7 +235,9 @@ export const App: React.FC = () => {
               serverStatus={safeSnapshot.serverStatus}
               users={safeSnapshot.users}
               auditLogs={safeSnapshot.recentAuditLogs}
-              isAdmin={isAdmin}
+              isSuperAdmin={isSuperAdmin}
+              canManageUsers={canManageUsers}
+              canControlServer={canControlServer}
               onToggleServer={toggleServer}
               onUpdateConfig={updateConfig}
               onRefreshSnapshot={refreshSnapshot}
@@ -224,7 +250,8 @@ export const App: React.FC = () => {
               config={safeSnapshot.config}
               codes={safeSnapshot.codes}
               canWrite={canWrite}
-              isAdmin={isAdmin}
+              canControlServer={canControlServer}
+              isSuperAdmin={isSuperAdmin}
               onSaveConfig={updateConfig}
               onRefreshSnapshot={refreshSnapshot}
               onShowToast={showToast}
@@ -235,6 +262,7 @@ export const App: React.FC = () => {
             <ProgramInfoView
               storageInfo={safeSnapshot.storageInfo}
               serverRunning={safeSnapshot.serverStatus.running}
+              canControlServer={canControlServer}
               onOpenFolder={handleOpenFolder}
               onToggleServer={() => void toggleServer(!safeSnapshot.serverStatus.running)}
             />

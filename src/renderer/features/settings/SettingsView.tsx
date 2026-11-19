@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { AlertTriangle, ListPlus, Plus, Save, Settings, Trash2 } from 'lucide-react'
+import { AlertTriangle, ListPlus, Plus, RefreshCw, Save, Settings, Trash2 } from 'lucide-react'
 import { AppConfig, CodeCategory } from '@shared/types/domain'
 import { unifiedApiClient } from '../../services/api-client'
 import { UtilityCard } from '../../components/ui/UtilityCard'
@@ -9,7 +9,8 @@ interface SettingsViewProps {
   config: AppConfig
   codes: Record<CodeCategory, string[]>
   canWrite: boolean
-  isAdmin: boolean
+  canControlServer: boolean
+  isSuperAdmin: boolean
   onSaveConfig: (next: AppConfig) => Promise<void>
   onRefreshSnapshot: () => Promise<void>
   onShowToast: (msg: string) => void
@@ -21,7 +22,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   config,
   codes,
   canWrite,
-  isAdmin,
+  canControlServer,
+  isSuperAdmin,
   onSaveConfig,
   onRefreshSnapshot,
   onShowToast
@@ -46,6 +48,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     await onRefreshSnapshot()
   }
 
+  const handleReloadMinwonCsv = async (): Promise<void> => {
+    const res = await unifiedApiClient.reloadMinwonCsv()
+    onShowToast(res.message)
+    await onRefreshSnapshot()
+  }
+
   const handleResetAllMinwon = async (): Promise<void> => {
     const res = await unifiedApiClient.resetAllMinwon()
     onShowToast(res.message)
@@ -55,7 +63,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   return (
     <div className="h-full p-3.5 w-full min-h-0 grid grid-cols-12 gap-3">
-      {/* 좌측 6컬럼: 접수구분 / 구역구분 / 공단 검토결과 동적 코드 항목 관리 (기존 VBA Sheet2~Sheet4) */}
+      {/* 좌측 6컬럼: 접수구분 / 구역구분 / 공단 검토결과 동적 코드 항목 관리 */}
       <div className="col-span-6 min-h-0 flex flex-col">
         <UtilityCard
           title="민원 선택 항목 관리 (접수구분 · 구역구분 · 공단 검토결과)"
@@ -64,7 +72,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           bodyClassName="gap-3"
         >
           <div className="text-[11.5px] text-[#64748b]">
-            기존 엑셀 숨김 시트(Sheet2~Sheet4)에서 관리하던 선택 목록을 이곳에서 손쉽게 추가·삭제할 수 있습니다.
+            민원 등록 및 검색 시 선택하는 접수구분, 구역구분, 공단 검토결과 항목을 자유롭게 추가·삭제할 수 있습니다.
           </div>
 
           <div className="inline-flex rounded-[7px] border border-[#cbd5e1] bg-[#f8fafc] p-0.5 shrink-0">
@@ -123,20 +131,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </UtilityCard>
       </div>
 
-      {/* 우측 6컬럼: 시스템 환경설정 & 데이터 초기화 */}
+      {/* 우측 6컬럼: 시스템 환경설정 & 기존 민원 데이터 동기화 / 초기화 */}
       <div className="col-span-6 min-h-0 flex flex-col gap-3">
         <UtilityCard
           title="시스템 및 다중 접속 서버 환경설정"
           badge={<Settings className="w-3.5 h-3.5 text-[#2563eb]" />}
           rightAction={
-            <PillButton
-              variant="primary"
-              size="sm"
-              onClick={() => void onSaveConfig(draftConfig)}
-            >
-              <Save className="w-3.5 h-3.5" />
-              <span>설정 저장</span>
-            </PillButton>
+            canControlServer && (
+              <PillButton
+                variant="primary"
+                size="sm"
+                onClick={() => void onSaveConfig(draftConfig)}
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>설정 저장</span>
+              </PillButton>
+            )
           }
           className="flex-1 min-h-0"
           bodyClassName="space-y-2.5 overflow-y-auto pr-1"
@@ -145,15 +155,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <div className="rounded-[8px] border border-[#cbd5e1] bg-[#f8fafc] p-3 flex items-center justify-between">
             <div>
               <div className="text-[12.5px] font-bold text-[#0f172a]">
-                프로그램 시작 시 로그인 모달 인증 필수
+                프로그램 시작 시 로그인 창 인증 필수
               </div>
               <div className="text-[11px] text-[#64748b]">
-                사용함으로 설정하면 시작 시 항상 담당자 계정 로그인을 확인합니다.
+                사용함으로 설정하면 시작 시 항상 사용자 계정 로그인을 확인합니다.
               </div>
             </div>
             <div className="inline-flex rounded-[6px] border border-[#cbd5e1] bg-white p-0.5">
               <button
                 type="button"
+                disabled={!canControlServer}
                 onClick={() =>
                   setDraftConfig({
                     ...draftConfig,
@@ -170,6 +181,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </button>
               <button
                 type="button"
+                disabled={!canControlServer}
                 onClick={() =>
                   setDraftConfig({
                     ...draftConfig,
@@ -187,19 +199,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
           </div>
 
-          {/* 프로그램 시작 시 REST API 서버 자동 기동 */}
+          {/* 프로그램 시작 시 다중 접속 서버 자동 기동 */}
           <div className="rounded-[8px] border border-[#cbd5e1] bg-[#f8fafc] p-3 flex items-center justify-between">
             <div>
               <div className="text-[12.5px] font-bold text-[#0f172a]">
-                프로그램 시작 시 다중 접속 REST API 서버 자동 켜기
+                프로그램 시작 시 다중 접속 서버 자동 켜기
               </div>
               <div className="text-[11px] text-[#64748b]">
-                켜 두면 앱을 실행할 때 다른 사용자 접속용 서버가 자동으로 함께 기동됩니다.
+                켜 두면 프로그램을 실행할 때 다른 사용자 접속용 서버가 자동으로 함께 기동됩니다.
               </div>
             </div>
             <div className="inline-flex rounded-[6px] border border-[#cbd5e1] bg-white p-0.5">
               <button
                 type="button"
+                disabled={!canControlServer}
                 onClick={() =>
                   setDraftConfig({
                     ...draftConfig,
@@ -220,6 +233,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </button>
               <button
                 type="button"
+                disabled={!canControlServer}
                 onClick={() =>
                   setDraftConfig({
                     ...draftConfig,
@@ -241,15 +255,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <div className="rounded-[8px] border border-[#cbd5e1] bg-[#f8fafc] p-3 flex items-center justify-between">
             <div>
               <div className="text-[12.5px] font-bold text-[#0f172a]">
-                창 닫기(X) 클릭 시 작업표시줄 트레이로 숨기기
+                창 닫기 버튼 클릭 시 작업표시줄 트레이로 숨기기
               </div>
               <div className="text-[11px] text-[#64748b]">
-                다중 접속 서버가 켜진 상태에서 실수로 창을 닫아도 백그라운드 서버가 유지됩니다.
+                다중 접속 서버가 켜진 상태에서 창을 닫아도 백그라운드 서버가 유지됩니다.
               </div>
             </div>
             <div className="inline-flex rounded-[6px] border border-[#cbd5e1] bg-white p-0.5">
               <button
                 type="button"
+                disabled={!canControlServer}
                 onClick={() =>
                   setDraftConfig({
                     ...draftConfig,
@@ -266,6 +281,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </button>
               <button
                 type="button"
+                disabled={!canControlServer}
                 onClick={() =>
                   setDraftConfig({
                     ...draftConfig,
@@ -287,14 +303,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <div className="rounded-[8px] border border-[#cbd5e1] bg-[#f8fafc] p-3 flex items-center justify-between">
             <div>
               <div className="text-[12.5px] font-bold text-[#0f172a]">
-                다중 접속 REST API 서버 기본 포트
+                다중 접속 서버 기본 포트 번호
               </div>
               <div className="text-[11px] text-[#64748b]">
-                다른 사용자들이 접속할 TCP 포트 번호입니다 (기본값: 8090).
+                다른 컴퓨터 사용자들이 접속할 포트 번호입니다 (기본값: 8090).
               </div>
             </div>
             <input
               type="number"
+              disabled={!canControlServer}
               value={draftConfig.server.port}
               onChange={(e) =>
                 setDraftConfig({
@@ -307,28 +324,39 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         </UtilityCard>
 
-        {/* 민원 데이터 전체 초기화 (기존 VBA InitData 2단계 안전 확인 계승) */}
-        {isAdmin && (
-          <UtilityCard
-            title="데이터 안전 초기화 (관리자 전용)"
-            badge={<AlertTriangle className="w-3.5 h-3.5 text-[#dc2626]" />}
-            className="shrink-0"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-[11.5px] text-[#64748b]">
-                등록된 민원접수대장 레코드를 모두 초기화합니다. (단속장비 487대 마스터와 사용자 계정은 유지됩니다)
-              </div>
-              {!confirmResetOpen ? (
+        {/* 기존 민원 데이터(114건) 복원 및 전체 초기화 */}
+        <UtilityCard
+          title="기존 민원접수대장 데이터 복원 및 초기화"
+          badge={<AlertTriangle className="w-3.5 h-3.5 text-[#2563eb]" />}
+          className="shrink-0"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-[11.5px] text-[#64748b]">
+              기존 민원접수대장 데이터(114건)를 다시 불러오거나 전체 초기화합니다.
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {canWrite && (
+                <PillButton
+                  variant="pearl-capsule"
+                  size="sm"
+                  onClick={() => void handleReloadMinwonCsv()}
+                >
+                  <RefreshCw className="w-3.5 h-3.5 text-[#059669]" />
+                  <span>기존 민원(114건) 복원</span>
+                </PillButton>
+              )}
+              {isSuperAdmin && !confirmResetOpen && (
                 <PillButton
                   variant="pearl-capsule"
                   size="sm"
                   onClick={() => setConfirmResetOpen(true)}
                 >
                   <Trash2 className="w-3.5 h-3.5 text-[#dc2626]" />
-                  <span className="text-[#dc2626] font-bold">민원 전체 초기화</span>
+                  <span className="text-[#dc2626] font-bold">전체 초기화</span>
                 </PillButton>
-              ) : (
-                <div className="flex items-center gap-1.5 shrink-0">
+              )}
+              {isSuperAdmin && confirmResetOpen && (
+                <>
                   <PillButton
                     variant="pearl-capsule"
                     size="sm"
@@ -343,11 +371,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   >
                     <span className="text-[#fca5a5] font-bold">최종 삭제 확인</span>
                   </PillButton>
-                </div>
+                </>
               )}
             </div>
-          </UtilityCard>
-        )}
+          </div>
+        </UtilityCard>
       </div>
     </div>
   )

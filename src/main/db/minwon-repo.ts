@@ -273,7 +273,7 @@ export class MinwonRepository {
     const pendingReviewCount = (
       this.db
         .prepare(
-          "SELECT COUNT(*) as cnt FROM minwon_records WHERE review_result IN ('검토중', '') OR review_date = ''"
+          "SELECT COUNT(*) as cnt FROM minwon_records WHERE review_result IN ('대기중', '검토중', '') OR review_date = ''"
         )
         .get() as { cnt: number }
     ).cnt

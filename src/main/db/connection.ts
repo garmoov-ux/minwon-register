@@ -7,7 +7,12 @@ let dbInstance: Database.Database | null = null
 
 export function createDatabaseConnection(
   dbFilePath: string,
-  options?: { seed?: boolean; customCsvPath?: string }
+  options?: {
+    seed?: boolean
+    customCsvPath?: string
+    customMinwonCsvPath?: string
+    seedMinwon?: boolean
+  }
 ): Database.Database {
   const db = new Database(dbFilePath)
   db.pragma('journal_mode = WAL')
@@ -17,17 +22,23 @@ export function createDatabaseConnection(
   initializeDatabaseSchema(db)
 
   if (options?.seed !== false) {
-    seedInitialDatabase(db, options?.customCsvPath)
+    seedInitialDatabase(db, {
+      customDeviceCsvPath: options?.customCsvPath,
+      customMinwonCsvPath: options?.customMinwonCsvPath,
+      seedMinwon: options?.seedMinwon
+    })
   }
   return db
 }
 
 export function getDatabase(): Database.Database {
   if (!dbInstance) {
-    const { dbPath, seedDeviceCsvPath } = resolveAppPaths()
+    const { dbPath, seedDeviceCsvPath, seedMinwonCsvPath } = resolveAppPaths()
     dbInstance = createDatabaseConnection(dbPath, {
       seed: true,
-      customCsvPath: seedDeviceCsvPath
+      customCsvPath: seedDeviceCsvPath,
+      customMinwonCsvPath: seedMinwonCsvPath,
+      seedMinwon: true
     })
   }
   return dbInstance

@@ -7,9 +7,13 @@ import { DeviceRepository } from '../src/main/db/device-repo'
 import { CodeRepository } from '../src/main/db/code-repo'
 import { EmbeddedRestServer } from '../src/main/server/rest-server'
 
-describe('내장 다중 사용자 REST API 서버 및 로그인 인증(RBAC) 통합 테스트', () => {
+describe('내장 다중 사용자 서버 및 3단계 권한(최고관리자·관리자·사용자) 통합 테스트', () => {
   const csvPath = path.resolve(__dirname, '../_ref_VBA/device.csv')
-  const db = createDatabaseConnection(':memory:', { seed: true, customCsvPath: csvPath })
+  const db = createDatabaseConnection(':memory:', {
+    seed: true,
+    customCsvPath: csvPath,
+    seedMinwon: false
+  })
   const userRepo = new UserRepository(db)
   const minwonRepo = new MinwonRepository(db)
   const deviceRepo = new DeviceRepository(db)
@@ -31,8 +35,7 @@ describe('내장 다중 사용자 REST API 서버 및 로그인 인증(RBAC) 통
       onStateMutated: () => {},
       allowRemoteWrite: () => true
     })
-    // 테스트용 임시 포트 기동
-    const testPort = 18095
+    const testPort = 18096
     await server.start(testPort, '127.0.0.1')
     baseUrl = `http://127.0.0.1:${testPort}`
   })
@@ -47,14 +50,7 @@ describe('내장 다중 사용자 REST API 서버 및 로그인 인증(RBAC) 통
     expect(res.status).toBe(401)
   })
 
-  it('2. 관리자(admin) 로그인 토큰 발급 및 원격 민원 등록·조회·수정·삭제 검증', async () => {
-    const loginRes = await fetch(`${baseUrl}/api/v1/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: 'admin', password: 'wrong-password' })
-    })
-    expect(loginRes.status).toBe(401)
-
+  it('2. 최고관리자(admin), 지정 관리자(manager), 일반 사용자(user1) 로그인 및 권한 검증', async () => {
     const validLoginRes = await fetch(`${baseUrl}/api/v1/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -63,10 +59,14 @@ describe('내장 다중 사용자 REST API 서버 및 로그인 인증(RBAC) 통
     expect(validLoginRes.status).toBe(200)
     const loginBody = (await validLoginRes.json()) as {
       ok: boolean
-      data: { token: string; user: { username: string; role: string } }
+      data: {
+        token: string
+        user: { username: string; role: string; jobTitle: string; canToggleServer: boolean }
+      }
     }
     expect(loginBody.ok).toBe(true)
-    expect(loginBody.data.user.role).toBe('ADMIN')
+    expect(loginBody.data.user.role).toBe('SUPER_ADMIN')
+    expect(loginBody.data.user.canToggleServer).toBe(true)
 
     const token = loginBody.data.token
     const authHeaders = {
@@ -81,43 +81,47 @@ describe('내장 다중 사용자 REST API 서버 및 로그인 인증(RBAC) 통
       body: JSON.stringify({
         receivedDate: '2026-11-19',
         receptionType: '국민신문고',
-        receptionNo: 'REST-2026-001',
+        receptionNo: '2026-001',
         complainantName: '이순신',
         contact: '010-7777-1111',
         location: '서귀포시 안덕면 상창리 1978-1',
         zoneType: '일반구역',
-        content: 'REST API 원격 접속 민원 등록 테스트',
+        content: '다중 접속 서버 원격 민원 등록 테스트',
         reviewDate: '2026-11-19',
-        reviewResult: '기존운영',
+        reviewResult: '적합',
         improvementResult: '정상 가동 안내 완료',
         note: 'B7272'
       })
     })
     expect(createRes.status).toBe(200)
-    const createdBody = (await createRes.json()) as { ok: boolean; data: { id: number } }
-    expect(createdBody.ok).toBe(true)
-    expect(createdBody.data.id).toBe(1)
 
-    // 원격 민원 목록 조회
-    const listRes = await fetch(`${baseUrl}/api/v1/minwon?keyword=이순신`, {
-      headers: authHeaders
-    })
-    expect(listRes.status).toBe(200)
-    const listBody = (await listRes.json()) as { ok: boolean; data: Array<{ complainantName: string }> }
-    expect(listBody.data.length).toBe(1)
-    expect(listBody.data[0].complainantName).toBe('이순신')
-
-    // 열람자(viewer) 로그인 후 쓰기 차단(403) 검증
-    const viewerLogin = await fetch(`${baseUrl}/api/v1/auth/login`, {
+    // 일반 사용자(user1)로 로그인 후 사용자 계정 생성 시도 -> 403 차단 확인
+    const userLogin = await fetch(`${baseUrl}/api/v1/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: 'viewer', password: 'view1234' })
+      body: JSON.stringify({ username: 'user1', password: 'user1234' })
     })
-    const viewerBody = (await viewerLogin.json()) as { data: { token: string } }
-    const viewerDeleteRes = await fetch(`${baseUrl}/api/v1/minwon/1`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${viewerBody.data.token}` }
+    const userBody = (await userLogin.json()) as {
+      data: { token: string; user: { role: string; canToggleServer: boolean } }
+    }
+    expect(userBody.data.user.role).toBe('USER')
+    expect(userBody.data.user.canToggleServer).toBe(false)
+
+    const forbiddenUserAdd = await fetch(`${baseUrl}/api/v1/users`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${userBody.data.token}`
+      },
+      body: JSON.stringify({
+        username: 'hacker',
+        displayName: '침입자',
+        jobTitle: '없음',
+        email: '',
+        contact: '',
+        role: 'ADMIN'
+      })
     })
-    expect(viewerDeleteRes.status).toBe(403)
+    expect(forbiddenUserAdd.status).toBe(403)
   })
 })

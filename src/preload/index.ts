@@ -42,6 +42,9 @@ export const minwonApi = {
   upsertUser: (payload: CreateUserPayload): Promise<ActionResult> =>
     ipcRenderer.invoke(IPC_CHANNELS.USER_UPSERT, payload),
 
+  designateServerAdmin: (username: string): Promise<ActionResult> =>
+    ipcRenderer.invoke(IPC_CHANNELS.USER_DESIGNATE_SERVER_ADMIN, username),
+
   deleteUser: (username: string): Promise<ActionResult> =>
     ipcRenderer.invoke(IPC_CHANNELS.USER_DELETE, username),
 
@@ -56,6 +59,9 @@ export const minwonApi = {
 
   resetAllMinwon: (): Promise<ActionResult> =>
     ipcRenderer.invoke(IPC_CHANNELS.MINWON_RESET_ALL),
+
+  reloadMinwonCsv: (): Promise<ActionResult> =>
+    ipcRenderer.invoke(IPC_CHANNELS.MINWON_RELOAD_CSV),
 
   listDevices: (params?: {
     keyword?: string

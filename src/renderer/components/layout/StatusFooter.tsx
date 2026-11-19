@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { Clock, FolderOpen, Globe, ShieldCheck, User } from 'lucide-react'
-import { AppSnapshot, AuthSession } from '@shared/types/domain'
+import { AppSnapshot, AuthSession, USER_ROLE_LABELS } from '@shared/types/domain'
 import { getClientConnectionConfig } from '../../services/api-client'
 
 interface StatusFooterProps {
@@ -9,12 +9,6 @@ interface StatusFooterProps {
   onOpenFolder: (kind: 'DATA' | 'EXPORT' | 'LOGS' | 'CONFIG') => void
   onOpenServerTab: () => void
   onOpenLoginModal: () => void
-}
-
-const ROLE_LABELS: Record<string, string> = {
-  ADMIN: '관리자',
-  OPERATOR: '담당자',
-  VIEWER: '열람자'
 }
 
 export const StatusFooter: React.FC<StatusFooterProps> = ({
@@ -55,7 +49,8 @@ export const StatusFooter: React.FC<StatusFooterProps> = ({
           <strong className="text-[#0f172a] font-semibold">접속 계정:</strong>
           {session ? (
             <span className="text-[#0f172a] font-medium">
-              {session.user.displayName} ({ROLE_LABELS[session.user.role] || session.user.role})
+              {session.user.displayName} ({session.user.jobTitle} ·{' '}
+              {USER_ROLE_LABELS[session.user.role] || session.user.role})
             </span>
           ) : (
             <span className="text-[#dc2626] font-semibold">미로그인</span>

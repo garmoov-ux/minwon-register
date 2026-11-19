@@ -57,11 +57,18 @@ const QUICK_PERIODS: Array<{ id: QuickDatePeriod; label: string }> = [
 ]
 
 const RESULT_BADGE_MAP: Record<string, string> = {
+  적합: 'bg-[#ecfdf5] text-[#047857] border-[#a7f3d0]',
+  '조건부 적합': 'bg-[#eff6ff] text-[#1d4ed8] border-[#bfdbfe]',
+  검토완료: 'bg-[#ecfdf5] text-[#047857] border-[#a7f3d0]',
+  부적합: 'bg-[#fef2f2] text-[#dc2626] border-[#fecaca]',
+  불합리: 'bg-[#fff7ed] text-[#c2410c] border-[#fed7aa]',
+  설치불가: 'bg-[#fef2f2] text-[#dc2626] border-[#fecaca]',
+  검토불필요: 'bg-[#f3e8ff] text-[#7e22ce] border-[#e9d5ff]',
+  대기중: 'bg-[#fef3c7] text-[#b45309] border-[#fde68a]',
   신규설치: 'bg-[#eff6ff] text-[#1d4ed8] border-[#bfdbfe]',
   이설검토: 'bg-[#fef3c7] text-[#b45309] border-[#fde68a]',
   기존운영: 'bg-[#ecfdf5] text-[#047857] border-[#a7f3d0]',
   수리완료: 'bg-[#ecfdf5] text-[#047857] border-[#a7f3d0]',
-  설치불가: 'bg-[#fef2f2] text-[#dc2626] border-[#fecaca]',
   지자체이관: 'bg-[#f3e8ff] text-[#7e22ce] border-[#e9d5ff]',
   검토중: 'bg-[#f1f5f9] text-[#475569] border-[#cbd5e1]'
 }
@@ -280,7 +287,7 @@ export const MinwonLedgerView: React.FC<MinwonLedgerViewProps> = ({
                 type="text"
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
-                placeholder="민원인 이름, 위치, 접수번호, 민원내용, 연락처 검색 (Enter)"
+                placeholder="민원인 이름, 위치, 접수번호, 민원내용, 연락처 입력 후 조회"
                 className="w-full h-[28px] pl-7.5 pr-2.5 rounded-[6px] border border-[#cbd5e1] bg-[#f8fafc] focus:bg-white text-[12px] text-[#0f172a] focus:outline-2 focus:outline-[#2563eb]"
               />
             </div>

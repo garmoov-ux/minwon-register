@@ -2,6 +2,8 @@ const path = require('path')
 const fs = require('fs')
 const { execFileSync } = require('child_process')
 
+const APP_DISPLAY_NAME = '자치경찰 무인교통단속장비 민원접수대장'
+
 function findRceditExe() {
   const localAppData = process.env.LOCALAPPDATA || ''
   const cacheDir = path.join(localAppData, 'electron-builder', 'Cache', 'winCodeSign')
@@ -25,10 +27,10 @@ function stampExecutable(exePath, iconPath) {
     exePath,
     '--set-version-string',
     'FileDescription',
-    'Minwon Register - 무인교통단속장비 민원접수대장 및 운영현황 관리 시스템',
+    APP_DISPLAY_NAME,
     '--set-version-string',
     'ProductName',
-    'Minwon Register - 무인교통단속장비 민원접수대장 및 운영현황 관리 시스템',
+    APP_DISPLAY_NAME,
     '--set-version-string',
     'CompanyName',
     '㈜이노네트웍스',
@@ -51,10 +53,18 @@ function stampExecutable(exePath, iconPath) {
   }
 }
 
+exports.stampExecutable = stampExecutable
+
 exports.default = async function afterPack(context) {
   if (context.electronPlatformName !== 'win32') return
   const exeName = `${context.packager.appInfo.productFilename}.exe`
   const exePath = path.join(context.appOutDir, exeName)
   const iconPath = path.resolve(context.packager.projectDir, 'resources', 'icon.ico')
   stampExecutable(exePath, iconPath)
+}
+
+if (require.main === module) {
+  const devElectronExe = path.resolve(__dirname, '../node_modules/electron/dist/electron.exe')
+  const iconPath = path.resolve(__dirname, 'icon.ico')
+  stampExecutable(devElectronExe, iconPath)
 }
