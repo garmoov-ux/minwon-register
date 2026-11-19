@@ -49,8 +49,11 @@ export const StatusFooter: React.FC<StatusFooterProps> = ({
           <strong className="text-[#0f172a] font-semibold">접속 계정:</strong>
           {session ? (
             <span className="text-[#0f172a] font-medium">
-              {session.user.displayName} ({session.user.jobTitle} ·{' '}
-              {USER_ROLE_LABELS[session.user.role] || session.user.role})
+              {session.user.displayName} (
+              {session.user.jobTitle === USER_ROLE_LABELS[session.user.role]
+                ? session.user.jobTitle
+                : `${session.user.jobTitle} · ${USER_ROLE_LABELS[session.user.role]}`}
+              )
             </span>
           ) : (
             <span className="text-[#dc2626] font-semibold">미로그인</span>

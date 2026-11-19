@@ -176,69 +176,69 @@ export const MinwonLedgerView: React.FC<MinwonLedgerViewProps> = ({
     <div className="h-full p-3.5 w-full min-h-0 flex flex-col gap-2.5">
       {/* 상단 요약 카드 4종 + 우측 빠른 액션 버튼 */}
       <div className="grid grid-cols-12 gap-2.5 shrink-0">
-        <div className="col-span-2 rounded-[9px] bg-white border border-[#cbd5e1] px-3 py-2 flex items-center justify-between">
-          <div>
+        <div className="col-span-2 rounded-[9px] bg-white border border-[#cbd5e1] px-3.5 py-2 flex items-center justify-between">
+          <div className="whitespace-nowrap">
             <div className="text-[11px] text-[#64748b] font-medium">총 누적 민원</div>
             <div className="text-[17px] font-extrabold text-[#0f172a] leading-tight mt-0.5">
               {summary.totalMinwonCount.toLocaleString()}
               <span className="text-[11.5px] font-semibold text-[#64748b] ml-0.5">건</span>
             </div>
           </div>
-          <span className="px-2 py-0.5 rounded-[5px] bg-[#eff6ff] text-[#2563eb] text-[10.5px] font-bold">
+          <span className="px-2 py-0.5 rounded-[5px] bg-[#eff6ff] text-[#2563eb] text-[10.5px] font-bold shrink-0">
             전체
           </span>
         </div>
 
-        <div className="col-span-2 rounded-[9px] bg-white border border-[#cbd5e1] px-3 py-2 flex items-center justify-between">
-          <div>
+        <div className="col-span-2 rounded-[9px] bg-white border border-[#cbd5e1] px-3.5 py-2 flex items-center justify-between">
+          <div className="whitespace-nowrap">
             <div className="text-[11px] text-[#64748b] font-medium">이번 달 접수</div>
             <div className="text-[17px] font-extrabold text-[#2563eb] leading-tight mt-0.5">
               {summary.thisMonthCount.toLocaleString()}
               <span className="text-[11.5px] font-semibold text-[#64748b] ml-0.5">건</span>
             </div>
           </div>
-          <span className="px-2 py-0.5 rounded-[5px] bg-[#f8fafc] border border-[#cbd5e1] text-[#334155] text-[10.5px] font-bold">
+          <span className="px-2 py-0.5 rounded-[5px] bg-[#f8fafc] border border-[#cbd5e1] text-[#334155] text-[10.5px] font-bold shrink-0">
             당월
           </span>
         </div>
 
-        <div className="col-span-2 rounded-[9px] bg-white border border-[#cbd5e1] px-3 py-2 flex items-center justify-between">
-          <div>
+        <div className="col-span-2 rounded-[9px] bg-white border border-[#cbd5e1] px-3.5 py-2 flex items-center justify-between">
+          <div className="whitespace-nowrap">
             <div className="text-[11px] text-[#64748b] font-medium">공단 검토 대기</div>
             <div className="text-[17px] font-extrabold text-[#d97706] leading-tight mt-0.5">
               {summary.pendingReviewCount.toLocaleString()}
               <span className="text-[11.5px] font-semibold text-[#64748b] ml-0.5">건</span>
             </div>
           </div>
-          <span className="px-2 py-0.5 rounded-[5px] bg-[#fef3c7] text-[#b45309] text-[10.5px] font-bold">
-            검토중
+          <span className="px-2 py-0.5 rounded-[5px] bg-[#fef3c7] text-[#b45309] text-[10.5px] font-bold shrink-0">
+            대기중
           </span>
         </div>
 
-        <div className="col-span-2 rounded-[9px] bg-white border border-[#cbd5e1] px-3 py-2 flex items-center justify-between">
-          <div>
+        <div className="col-span-2 rounded-[9px] bg-white border border-[#cbd5e1] px-3.5 py-2 flex items-center justify-between">
+          <div className="whitespace-nowrap">
             <div className="text-[11px] text-[#64748b] font-medium">검토/조치 완료</div>
             <div className="text-[17px] font-extrabold text-[#059669] leading-tight mt-0.5">
               {summary.completedReviewCount.toLocaleString()}
               <span className="text-[11.5px] font-semibold text-[#64748b] ml-0.5">건</span>
             </div>
           </div>
-          <span className="px-2 py-0.5 rounded-[5px] bg-[#ecfdf5] text-[#047857] text-[10.5px] font-bold">
+          <span className="px-2 py-0.5 rounded-[5px] bg-[#ecfdf5] text-[#047857] text-[10.5px] font-bold shrink-0">
             완료
           </span>
         </div>
 
-        <div className="col-span-4 rounded-[9px] bg-[#0f172a] text-white border border-[#1e293b] px-3 py-2 flex items-center justify-between gap-2">
-          <div className="min-w-0">
+        <div className="col-span-4 rounded-[9px] bg-[#0f172a] text-white border border-[#1e293b] px-3.5 py-2 flex items-center justify-between gap-2">
+          <div className="whitespace-nowrap">
             <div className="text-[11px] text-slate-400">현재 조회 결과</div>
-            <div className="text-[15px] font-extrabold text-white">
+            <div className="text-[15.5px] font-extrabold text-white mt-0.5">
               {records.length.toLocaleString()}건 표시 중
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             <PillButton variant="pearl-capsule" size="sm" onClick={() => void handleExportFiltered()}>
               <Download className="w-3.5 h-3.5 text-[#2563eb]" />
-              <span>조회결과 엑셀</span>
+              <span>조회 엑셀</span>
             </PillButton>
             <PillButton variant="secondary-pill" size="sm" onClick={() => void handleExportAll()}>
               <FileSpreadsheet className="w-3.5 h-3.5" />
@@ -254,13 +254,13 @@ export const MinwonLedgerView: React.FC<MinwonLedgerViewProps> = ({
         </div>
       </div>
 
-      {/* 복합 검색 및 날짜 필터 바 (기존 VBA frmSearch 완벽 계승) */}
+      {/* 복합 검색 및 날짜 필터 바 (두 줄로 겹치지 않게 한 줄 정렬) */}
       <div className="rounded-[10px] bg-white border border-[#cbd5e1] p-2.5 shrink-0 space-y-2">
         {/* 1행: 검색구분, 키워드, 공단 검토결과, 구역구분 */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 shrink-0">
             <Filter className="w-3.5 h-3.5 text-[#2563eb]" />
-            <span className="text-[11.5px] font-bold text-[#334155]">검색구분</span>
+            <span className="text-[11.5px] font-bold text-[#334155] whitespace-nowrap">검색구분</span>
             <select
               value={division}
               onChange={(e) => setDivision(e.target.value as SearchFieldDivision)}
@@ -296,8 +296,8 @@ export const MinwonLedgerView: React.FC<MinwonLedgerViewProps> = ({
             </PillButton>
           </form>
 
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11.5px] font-bold text-[#334155]">공단 검토결과</span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[11.5px] font-bold text-[#334155] whitespace-nowrap">공단 검토결과</span>
             <select
               value={reviewResult}
               onChange={(e) => setReviewResult(e.target.value)}
@@ -312,8 +312,8 @@ export const MinwonLedgerView: React.FC<MinwonLedgerViewProps> = ({
             </select>
           </div>
 
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11.5px] font-bold text-[#334155]">구역구분</span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[11.5px] font-bold text-[#334155] whitespace-nowrap">구역구분</span>
             <select
               value={zoneType}
               onChange={(e) => setZoneType(e.target.value)}
@@ -334,24 +334,26 @@ export const MinwonLedgerView: React.FC<MinwonLedgerViewProps> = ({
           </PillButton>
         </div>
 
-        {/* 2행: 접수일자 빠른 기간 & 공단 검토일자 빠른 기간 */}
-        <div className="grid grid-cols-12 gap-2 pt-1.5 border-t border-[#e2e8f0] text-[11.5px]">
-          <div className="col-span-6 flex items-center gap-1.5 flex-wrap">
-            <span className="inline-flex items-center gap-1 font-bold text-[#334155] w-[66px]">
-              <Calendar className="w-3.5 h-3.5 text-[#2563eb]" />
-              접수일자
-            </span>
-            <div className="flex items-center gap-1">
-              {QUICK_PERIODS.map((p) => (
-                <OptionChip
-                  key={p.id}
-                  label={p.label}
-                  selected={receivedPeriod === p.id}
-                  onClick={() => handleApplyReceivedPeriod(p.id)}
-                />
-              ))}
+        {/* 2행: 접수일자 빠른 기간 & 공단 검토일자 빠른 기간 (한 줄 정렬) */}
+        <div className="grid grid-cols-12 gap-3 pt-1.5 border-t border-[#e2e8f0] text-[11.5px]">
+          <div className="col-span-6 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+              <span className="inline-flex items-center gap-1 font-bold text-[#334155] whitespace-nowrap">
+                <Calendar className="w-3.5 h-3.5 text-[#2563eb]" />
+                접수일자
+              </span>
+              <div className="flex items-center gap-1">
+                {QUICK_PERIODS.map((p) => (
+                  <OptionChip
+                    key={p.id}
+                    label={p.label}
+                    selected={receivedPeriod === p.id}
+                    onClick={() => handleApplyReceivedPeriod(p.id)}
+                  />
+                ))}
+              </div>
             </div>
-            <div className="flex items-center gap-1 ml-auto">
+            <div className="flex items-center gap-1 shrink-0">
               <input
                 type="date"
                 value={receivedStartDate}
@@ -361,7 +363,7 @@ export const MinwonLedgerView: React.FC<MinwonLedgerViewProps> = ({
                 }}
                 onDoubleClick={() => setReceivedStartDate('')}
                 title="더블클릭 시 날짜 초기화"
-                className="h-[26px] px-1.5 rounded-[5px] border border-[#cbd5e1] bg-[#f8fafc] text-[11.5px]"
+                className="w-[116px] h-[27px] px-1.5 rounded-[5px] border border-[#cbd5e1] bg-[#f8fafc] text-[11.5px]"
               />
               <span className="text-[#64748b]">~</span>
               <input
@@ -373,27 +375,29 @@ export const MinwonLedgerView: React.FC<MinwonLedgerViewProps> = ({
                 }}
                 onDoubleClick={() => setReceivedEndDate('')}
                 title="더블클릭 시 날짜 초기화"
-                className="h-[26px] px-1.5 rounded-[5px] border border-[#cbd5e1] bg-[#f8fafc] text-[11.5px]"
+                className="w-[116px] h-[27px] px-1.5 rounded-[5px] border border-[#cbd5e1] bg-[#f8fafc] text-[11.5px]"
               />
             </div>
           </div>
 
-          <div className="col-span-6 flex items-center gap-1.5 flex-wrap border-l border-[#e2e8f0] pl-2.5">
-            <span className="inline-flex items-center gap-1 font-bold text-[#334155] w-[66px]">
-              <Calendar className="w-3.5 h-3.5 text-[#059669]" />
-              검토일자
-            </span>
-            <div className="flex items-center gap-1">
-              {QUICK_PERIODS.map((p) => (
-                <OptionChip
-                  key={p.id}
-                  label={p.label}
-                  selected={reviewPeriod === p.id}
-                  onClick={() => handleApplyReviewPeriod(p.id)}
-                />
-              ))}
+          <div className="col-span-6 flex items-center justify-between gap-2 border-l border-[#e2e8f0] pl-3">
+            <div className="flex items-center gap-1.5">
+              <span className="inline-flex items-center gap-1 font-bold text-[#334155] whitespace-nowrap">
+                <Calendar className="w-3.5 h-3.5 text-[#059669]" />
+                검토일자
+              </span>
+              <div className="flex items-center gap-1">
+                {QUICK_PERIODS.map((p) => (
+                  <OptionChip
+                    key={p.id}
+                    label={p.label}
+                    selected={reviewPeriod === p.id}
+                    onClick={() => handleApplyReviewPeriod(p.id)}
+                  />
+                ))}
+              </div>
             </div>
-            <div className="flex items-center gap-1 ml-auto">
+            <div className="flex items-center gap-1 shrink-0">
               <input
                 type="date"
                 value={reviewStartDate}
@@ -403,7 +407,7 @@ export const MinwonLedgerView: React.FC<MinwonLedgerViewProps> = ({
                 }}
                 onDoubleClick={() => setReviewStartDate('')}
                 title="더블클릭 시 날짜 초기화"
-                className="h-[26px] px-1.5 rounded-[5px] border border-[#cbd5e1] bg-[#f8fafc] text-[11.5px]"
+                className="w-[116px] h-[27px] px-1.5 rounded-[5px] border border-[#cbd5e1] bg-[#f8fafc] text-[11.5px]"
               />
               <span className="text-[#64748b]">~</span>
               <input
@@ -415,33 +419,33 @@ export const MinwonLedgerView: React.FC<MinwonLedgerViewProps> = ({
                 }}
                 onDoubleClick={() => setReviewEndDate('')}
                 title="더블클릭 시 날짜 초기화"
-                className="h-[26px] px-1.5 rounded-[5px] border border-[#cbd5e1] bg-[#f8fafc] text-[11.5px]"
+                className="w-[116px] h-[27px] px-1.5 rounded-[5px] border border-[#cbd5e1] bg-[#f8fafc] text-[11.5px]"
               />
             </div>
           </div>
         </div>
       </div>
 
-      {/* 단일 테두리 시트: 13개 필드 민원접수대장 고밀도 테이블 */}
+      {/* 단일 테두리 시트: 13개 필드 민원접수대장 고밀도 테이블 (세로 줄바꿈 깨짐 완벽 방지) */}
       <div className="flex-1 min-h-0 bg-[#ffffff] border border-[#cbd5e1] rounded-[10px] overflow-hidden flex flex-col">
         <div className="flex-1 min-h-0 overflow-auto">
-          <table className="w-full border-collapse text-left text-[12px]">
+          <table className="w-full min-w-[1260px] table-fixed border-collapse text-left text-[12px]">
             <thead className="sticky top-0 z-10 bg-[#f1f5f9] text-[#334155] border-b border-[#cbd5e1] text-[11.5px] font-bold">
-              <tr>
-                <th className="py-2 px-2 text-center w-[46px]">연번</th>
-                <th className="py-2 px-2 text-center w-[86px]">접수일자</th>
-                <th className="py-2 px-2 text-center w-[78px]">접수구분</th>
-                <th className="py-2 px-2 w-[92px]">접수번호</th>
-                <th className="py-2 px-2 text-center w-[68px]">이름</th>
-                <th className="py-2 px-2 w-[98px]">연락처</th>
-                <th className="py-2 px-2 w-[170px]">위치</th>
-                <th className="py-2 px-2 text-center w-[88px]">구역구분</th>
-                <th className="py-2 px-2 min-w-[160px]">민원내용</th>
-                <th className="py-2 px-2 text-center w-[86px]">공단 검토일자</th>
-                <th className="py-2 px-2 text-center w-[84px]">공단 검토결과</th>
-                <th className="py-2 px-2 w-[120px]">개선결과</th>
-                <th className="py-2 px-2 w-[85px]">비고</th>
-                {canWrite && <th className="py-2 px-2 text-center w-[68px]">관리</th>}
+              <tr className="whitespace-nowrap">
+                <th className="py-2.5 px-2 text-center w-[48px]">연번</th>
+                <th className="py-2.5 px-2 text-center w-[92px]">접수일자</th>
+                <th className="py-2.5 px-2 text-center w-[96px]">접수구분</th>
+                <th className="py-2.5 px-2 text-center w-[76px]">접수번호</th>
+                <th className="py-2.5 px-2 text-center w-[88px]">이름</th>
+                <th className="py-2.5 px-2 text-center w-[112px]">연락처</th>
+                <th className="py-2.5 px-2.5 w-[210px]">위치</th>
+                <th className="py-2.5 px-2 text-center w-[96px]">구역구분</th>
+                <th className="py-2.5 px-2.5 w-[180px]">민원내용</th>
+                <th className="py-2.5 px-2 text-center w-[92px]">공단 검토일자</th>
+                <th className="py-2.5 px-2 text-center w-[92px]">공단 검토결과</th>
+                <th className="py-2.5 px-2 w-[120px]">개선결과</th>
+                <th className="py-2.5 px-2 w-[110px]">비고</th>
+                {canWrite && <th className="py-2.5 px-2 text-center w-[64px]">관리</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-[#e2e8f0]">
@@ -467,61 +471,66 @@ export const MinwonLedgerView: React.FC<MinwonLedgerViewProps> = ({
                       onClick={() => setSelectedId(r.id)}
                       onDoubleClick={() => onSelectEdit(r)}
                       title="더블클릭 시 상세 편집 화면으로 이동합니다"
-                      className={`transition-colors cursor-pointer ${
+                      className={`h-[38px] transition-colors cursor-pointer whitespace-nowrap ${
                         isSelected
-                          ? 'bg-[#fef2f2] font-semibold'
+                          ? 'bg-[#eff6ff] font-semibold'
                           : 'hover:bg-[#f8fafc]'
                       }`}
                     >
-                      <td className="py-2 px-2 text-center font-bold text-[#0f172a]">{r.id}</td>
-                      <td className="py-2 px-2 text-center text-[#334155] whitespace-nowrap">
+                      <td className="py-1.5 px-2 text-center font-bold text-[#0f172a]">
+                        {r.id}
+                      </td>
+                      <td className="py-1.5 px-2 text-center text-[#334155]">
                         {r.receivedDate}
                       </td>
-                      <td className="py-2 px-2 text-center">
-                        <span className="px-1.5 py-0.5 rounded-[4px] bg-[#f1f5f9] border border-[#cbd5e1] text-[11px] font-medium text-[#334155]">
+                      <td className="py-1.5 px-2 text-center">
+                        <span className="inline-block px-2 py-0.5 rounded-[4px] bg-[#f1f5f9] border border-[#cbd5e1] text-[11px] font-semibold text-[#334155] whitespace-nowrap">
                           {r.receptionType || '-'}
                         </span>
                       </td>
-                      <td className="py-2 px-2 text-[#334155] truncate max-w-[92px]" title={r.receptionNo}>
+                      <td className="py-1.5 px-2 text-center text-[#334155] truncate" title={r.receptionNo}>
                         {r.receptionNo || '-'}
                       </td>
-                      <td className="py-2 px-2 text-center font-semibold text-[#0f172a]">
+                      <td
+                        className="py-1.5 px-2 text-center font-semibold text-[#0f172a] truncate"
+                        title={r.complainantName}
+                      >
                         {r.complainantName || '-'}
                       </td>
-                      <td className="py-2 px-2 text-[#334155] whitespace-nowrap">
+                      <td className="py-1.5 px-2 text-center text-[#334155] truncate" title={r.contact}>
                         {r.contact || '-'}
                       </td>
-                      <td className="py-2 px-2 text-[#0f172a] truncate max-w-[170px]" title={r.location}>
+                      <td className="py-1.5 px-2.5 text-[#0f172a] truncate" title={r.location}>
                         {r.location || '-'}
                       </td>
-                      <td className="py-2 px-2 text-center text-[11px] text-[#475569] whitespace-nowrap">
+                      <td className="py-1.5 px-2 text-center text-[11.5px] text-[#475569]">
                         {r.zoneType || '일반구역'}
                       </td>
-                      <td className="py-2 px-2 text-[#334155] truncate max-w-[200px]" title={r.content}>
+                      <td className="py-1.5 px-2.5 text-[#334155] truncate" title={r.content}>
                         {r.content || '-'}
                       </td>
-                      <td className="py-2 px-2 text-center text-[#334155] whitespace-nowrap">
+                      <td className="py-1.5 px-2 text-center text-[#334155]">
                         {r.reviewDate || '-'}
                       </td>
-                      <td className="py-2 px-2 text-center">
+                      <td className="py-1.5 px-2 text-center">
                         <span
-                          className={`px-2 py-0.5 rounded-[5px] border text-[11px] font-semibold whitespace-nowrap ${badgeCls}`}
+                          className={`inline-block px-2 py-0.5 rounded-[5px] border text-[11px] font-semibold whitespace-nowrap ${badgeCls}`}
                         >
-                          {r.reviewResult || '검토중'}
+                          {r.reviewResult || '대기중'}
                         </span>
                       </td>
                       <td
-                        className="py-2 px-2 text-[#334155] truncate max-w-[120px]"
+                        className="py-1.5 px-2 text-[#334155] truncate"
                         title={r.improvementResult}
                       >
                         {r.improvementResult || '-'}
                       </td>
-                      <td className="py-2 px-2 text-[#64748b] truncate max-w-[85px]" title={r.note}>
+                      <td className="py-1.5 px-2 text-[#64748b] truncate" title={r.note}>
                         {r.note || (r.deviceId ? `[${r.deviceId}]` : '-')}
                       </td>
                       {canWrite && (
                         <td
-                          className="py-1.5 px-2 text-center whitespace-nowrap"
+                          className="py-1.5 px-2 text-center"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <div className="inline-flex items-center gap-1">

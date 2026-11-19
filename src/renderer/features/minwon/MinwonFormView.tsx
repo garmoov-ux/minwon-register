@@ -7,6 +7,7 @@ import {
   RotateCcw,
   Save,
   Search,
+  Sparkles,
   Trash2
 } from 'lucide-react'
 import {
@@ -31,6 +32,15 @@ interface MinwonFormViewProps {
   onBackToLedger: () => void
 }
 
+const QUICK_CONTENT_TEMPLATES = [
+  '과속단속장비 설치요청',
+  '신호과속단속장비 설치요청',
+  '전·후면 과속단속장비 설치요청',
+  '과속단속장비 이설요청',
+  '제한속도 하향 및 표지판 정비 요청',
+  '이동식 단속부스 설치요청'
+]
+
 export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
   codes,
   initialRecord,
@@ -50,7 +60,9 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
   const [receptionType, setReceptionType] = useState<string>(
     initialRecord?.receptionType || codes.접수구분[0] || '국민신문고'
   )
-  const [receptionNo, setReceptionNo] = useState<string>(initialRecord?.receptionNo || '')
+  const [receptionNo, setReceptionNo] = useState<string>(
+    initialRecord?.receptionNo || String(nextSuggestedId)
+  )
   const [complainantName, setComplainantName] = useState<string>(
     initialRecord?.complainantName || ''
   )
@@ -62,7 +74,7 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
   const [content, setContent] = useState<string>(initialRecord?.content || '')
   const [reviewDate, setReviewDate] = useState<string>(initialRecord?.reviewDate || '')
   const [reviewResult, setReviewResult] = useState<string>(
-    initialRecord?.reviewResult || codes.검토결과[0] || '검토중'
+    initialRecord?.reviewResult || codes.검토결과[0] || '대기중'
   )
   const [improvementResult, setImprovementResult] = useState<string>(
     initialRecord?.improvementResult || ''
@@ -72,6 +84,7 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
 
   // 우측 단속장비 위치 빠른 검색 연동
   const [deviceSearchKw, setDeviceSearchKw] = useState<string>('')
+  const [deviceZoneFilter, setDeviceZoneFilter] = useState<string>('전체')
   const [deviceList, setDeviceList] = useState<TrafficDevice[]>([])
 
   useEffect(() => {
@@ -92,30 +105,34 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
       setDeviceId(initialRecord.deviceId)
     } else {
       setId(nextSuggestedId)
+      setReceptionNo(String(nextSuggestedId))
     }
   }, [initialRecord, nextSuggestedId])
 
   useEffect(() => {
     const loadDevices = async (): Promise<void> => {
-      const list = await unifiedApiClient.listDevices({ keyword: deviceSearchKw })
-      setDeviceList(list.slice(0, 60))
+      const list = await unifiedApiClient.listDevices({
+        keyword: deviceSearchKw,
+        zoneType: deviceZoneFilter === '전체' ? '' : deviceZoneFilter
+      })
+      setDeviceList(list.slice(0, 80))
     }
     void loadDevices()
-  }, [deviceSearchKw])
+  }, [deviceSearchKw, deviceZoneFilter])
 
   const handleResetNew = (): void => {
     onClearInitial()
     setId(nextSuggestedId)
     setReceivedDate(todayStr)
     setReceptionType(codes.접수구분[0] || '국민신문고')
-    setReceptionNo('')
+    setReceptionNo(String(nextSuggestedId))
     setComplainantName('')
     setContact('')
     setLocation('')
     setZoneType(codes.구역구분[0] || '일반구역')
     setContent('')
     setReviewDate('')
-    setReviewResult('검토중')
+    setReviewResult('대기중')
     setImprovementResult('')
     setNote('')
     setDeviceId('')
@@ -127,13 +144,14 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
     setZoneType(d.zoneType)
     if (!note.includes(d.deviceId)) {
       setNote((prev) =>
-        prev ? `${prev} / 장비:${d.deviceId}(${d.enforcementType} ${d.speedLimit}km)` : `장비:${d.deviceId}(${d.enforcementType} ${d.speedLimit}km)`
+        prev
+          ? `${prev} / 장비:${d.deviceId}(${d.enforcementType} ${d.speedLimit}km)`
+          : `장비:${d.deviceId}(${d.enforcementType} ${d.speedLimit}km)`
       )
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
-    e.preventDefault()
+  const savePayload = async (stayAndNew: boolean): Promise<void> => {
     const ok = await onSaveRecord({
       id: initialRecord ? initialRecord.id : id,
       receivedDate,
@@ -150,31 +168,42 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
       note,
       deviceId
     })
-    if (ok) {
+    if (!ok) return
+
+    if (stayAndNew) {
+      handleResetNew()
+      setId(id + 1)
+      setReceptionNo(String(id + 1))
+    } else {
       onBackToLedger()
     }
   }
 
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
+    e.preventDefault()
+    await savePayload(false)
+  }
+
   return (
     <div className="h-full p-3.5 w-full min-h-0 grid grid-cols-12 gap-3">
-      {/* 좌측 8컬럼: 민원접수대장 13대 표준 항목 입력/수정 시트 (기존 VBA D4:D19 완벽 대응) */}
+      {/* 좌측 8컬럼: 민원접수대장 등록/수정 시트 (원클릭 칩 버튼 + 직접입력 결합) */}
       <div className="col-span-8 min-h-0 flex flex-col">
         <UtilityCard
           title={
             initialRecord
               ? `민원접수 내역 수정 (연번 #${initialRecord.id})`
-              : `신규 민원접수 등록 (예정 연번 #${id})`
+              : `신규 민원접수 등록 (연번 #${id})`
           }
           badge={
             <span className="px-2 py-0.5 rounded-[5px] bg-[#eff6ff] text-[#2563eb] border border-[#bfdbfe] text-[11px] font-semibold">
-              {initialRecord ? '수정 모드' : '새 작성 모드'}
+              {initialRecord ? '수정 모드' : '신규 작성'}
             </span>
           }
           rightAction={
             <div className="flex items-center gap-1.5">
               <PillButton variant="pearl-capsule" size="sm" onClick={handleResetNew}>
                 <RotateCcw className="w-3.5 h-3.5 text-[#2563eb]" />
-                <span>새 작성(초기화)</span>
+                <span>입력 초기화</span>
               </PillButton>
               {initialRecord && canWrite && (
                 <PillButton
@@ -194,16 +223,14 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
             onSubmit={(e) => void handleSubmit(e)}
             className="flex-1 min-h-0 flex flex-col justify-between gap-2.5 overflow-y-auto pr-1"
           >
-            <div className="space-y-3">
-              {/* 섹션 1: 접수 기본 정보 */}
+            <div className="space-y-2.5">
+              {/* 섹션 1: 민원 접수 기본 정보 */}
               <div className="rounded-[9px] border border-[#cbd5e1] bg-[#f8fafc] p-3 space-y-2.5">
-                <div className="text-[12px] font-bold text-[#1e293b] flex items-center justify-between">
-                  <span>1. 민원 접수 및 민원인 기본 정보</span>
-                  <span className="text-[11px] text-[#64748b] font-normal">
-                    * 접수구분을 직접 입력하면 다음 등록부터 목록에 자동 추가됩니다.
-                  </span>
+                <div className="text-[12px] font-bold text-[#0f172a]">
+                  1. 민원 접수 및 민원인 기본 정보
                 </div>
 
+                {/* 연번 / 접수일자 / 접수번호 / 민원인 이름 / 연락처 */}
                 <div className="grid grid-cols-12 gap-2.5">
                   <div className="col-span-2">
                     <label className="block text-[11.5px] font-semibold text-[#475569] mb-1">
@@ -233,35 +260,14 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
                       <button
                         type="button"
                         onClick={() => setReceivedDate(todayStr)}
-                        className="h-[32px] px-2 rounded-[6px] bg-[#eff6ff] hover:bg-[#dbeafe] text-[#1d4ed8] border border-[#bfdbfe] text-[11px] font-semibold whitespace-nowrap cursor-pointer"
+                        className="h-[32px] px-2 rounded-[6px] bg-[#eff6ff] hover:bg-[#dbeafe] text-[#1d4ed8] border border-[#bfdbfe] text-[11px] font-bold whitespace-nowrap cursor-pointer"
                       >
                         오늘
                       </button>
                     </div>
                   </div>
 
-                  <div className="col-span-4">
-                    <label className="block text-[11.5px] font-semibold text-[#475569] mb-1">
-                      접수구분 (선택 또는 직접 입력)
-                    </label>
-                    <div className="flex items-center gap-1">
-                      <input
-                        type="text"
-                        list="reception-type-list"
-                        value={receptionType}
-                        onChange={(e) => setReceptionType(e.target.value)}
-                        placeholder="예: 국민신문고, 전화민원"
-                        className="w-full h-[32px] px-2.5 rounded-[6px] border border-[#cbd5e1] bg-white text-[12.5px] text-[#0f172a]"
-                      />
-                      <datalist id="reception-type-list">
-                        {codes.접수구분.map((c) => (
-                          <option key={c} value={c} />
-                        ))}
-                      </datalist>
-                    </div>
-                  </div>
-
-                  <div className="col-span-3">
+                  <div className="col-span-2">
                     <label className="block text-[11.5px] font-semibold text-[#475569] mb-1">
                       접수번호
                     </label>
@@ -269,14 +275,12 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
                       type="text"
                       value={receptionNo}
                       onChange={(e) => setReceptionNo(e.target.value)}
-                      placeholder="예: 1AA-2611-001234"
+                      placeholder="접수번호"
                       className="w-full h-[32px] px-2.5 rounded-[6px] border border-[#cbd5e1] bg-white text-[12.5px] text-[#0f172a]"
                     />
                   </div>
-                </div>
 
-                <div className="grid grid-cols-12 gap-2.5">
-                  <div className="col-span-3">
+                  <div className="col-span-2">
                     <label className="block text-[11.5px] font-semibold text-[#475569] mb-1">
                       민원인 이름
                     </label>
@@ -284,8 +288,8 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
                       type="text"
                       value={complainantName}
                       onChange={(e) => setComplainantName(e.target.value)}
-                      placeholder="성명 입력"
-                      className="w-full h-[32px] px-2.5 rounded-[6px] border border-[#cbd5e1] bg-white text-[12.5px] text-[#0f172a]"
+                      placeholder="성명 (없으면 -)"
+                      className="w-full h-[32px] px-2.5 rounded-[6px] border border-[#cbd5e1] bg-white text-[12.5px] font-semibold text-[#0f172a]"
                     />
                   </div>
 
@@ -301,69 +305,156 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
                       className="w-full h-[32px] px-2.5 rounded-[6px] border border-[#cbd5e1] bg-white text-[12.5px] text-[#0f172a]"
                     />
                   </div>
+                </div>
 
-                  <div className="col-span-3">
+                {/* 접수구분: 원클릭 선택 칩 + 직접 입력 */}
+                <div className="grid grid-cols-12 gap-2.5 items-center">
+                  <div className="col-span-8">
                     <label className="block text-[11.5px] font-semibold text-[#475569] mb-1">
-                      구역구분
+                      접수구분 빠른 선택
                     </label>
-                    <select
-                      value={zoneType}
-                      onChange={(e) => setZoneType(e.target.value)}
-                      className="w-full h-[32px] px-2 rounded-[6px] border border-[#cbd5e1] bg-white text-[12.5px] text-[#0f172a]"
-                    >
-                      {codes.구역구분.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {codes.접수구분.map((item) => (
+                        <button
+                          key={item}
+                          type="button"
+                          onClick={() => setReceptionType(item)}
+                          className={`h-[29px] px-2.5 rounded-[6px] text-[11.5px] font-semibold border transition-all cursor-pointer ${
+                            receptionType === item
+                              ? 'bg-[#2563eb] text-white border-[#2563eb]'
+                              : 'bg-white hover:bg-[#f1f5f9] text-[#334155] border-[#cbd5e1]'
+                          }`}
+                        >
+                          {item}
+                        </button>
                       ))}
-                    </select>
+                    </div>
                   </div>
-
-                  <div className="col-span-3">
+                  <div className="col-span-4">
                     <label className="block text-[11.5px] font-semibold text-[#475569] mb-1">
-                      연결 장비번호 (선택)
+                      접수구분 직접 입력 (자동 추가)
+                    </label>
+                    <input
+                      type="text"
+                      value={receptionType}
+                      onChange={(e) => setReceptionType(e.target.value)}
+                      placeholder="새로운 접수구분 입력"
+                      className="w-full h-[30px] px-2.5 rounded-[6px] border border-[#cbd5e1] bg-white text-[12px] font-semibold text-[#0f172a]"
+                    />
+                  </div>
+                </div>
+
+                {/* 구역구분 원클릭 칩 + 연결 장비번호 */}
+                <div className="grid grid-cols-12 gap-2.5 items-center">
+                  <div className="col-span-8">
+                    <label className="block text-[11.5px] font-semibold text-[#475569] mb-1">
+                      구역구분 선택
+                    </label>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {codes.구역구분.map((z) => (
+                        <button
+                          key={z}
+                          type="button"
+                          onClick={() => setZoneType(z)}
+                          className={`h-[29px] px-3 rounded-[6px] text-[11.5px] font-semibold border transition-all cursor-pointer ${
+                            zoneType === z
+                              ? 'bg-[#0f172a] text-white border-[#0f172a]'
+                              : 'bg-white hover:bg-[#f1f5f9] text-[#334155] border-[#cbd5e1]'
+                          }`}
+                        >
+                          {z}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="col-span-4">
+                    <label className="block text-[11.5px] font-semibold text-[#475569] mb-1">
+                      연결 장비번호 (우측 장비 클릭 시 자동 입력)
                     </label>
                     <input
                       type="text"
                       value={deviceId}
                       onChange={(e) => setDeviceId(e.target.value)}
-                      placeholder="우측 장비 클릭 시 자동입력"
-                      className="w-full h-[32px] px-2.5 rounded-[6px] border border-[#cbd5e1] bg-white text-[12.5px] text-[#2563eb] font-semibold"
+                      placeholder="예: B7272"
+                      className="w-full h-[30px] px-2.5 rounded-[6px] border border-[#cbd5e1] bg-white text-[12px] font-bold text-[#2563eb]"
                     />
                   </div>
                 </div>
 
+                {/* 위치 */}
                 <div>
                   <label className="block text-[11.5px] font-semibold text-[#475569] mb-1">
-                    위치 (주소 / 교차로 / 설치 장소 — 우측 단속장비 목록에서 클릭하면 자동 입력됩니다)
+                    민원 위치 (직접 입력하거나 우측 단속장비 목록에서 클릭하면 자동 입력됩니다)
                   </label>
                   <input
                     type="text"
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
-                    placeholder="예: 제주시 도평동 781-1 도평초교입구 사거리"
+                    placeholder="예: 제주시 아라일동 1960-1 아라요양병원 앞"
                     className="w-full h-[32px] px-2.5 rounded-[6px] border border-[#cbd5e1] bg-white text-[12.5px] text-[#0f172a]"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-[11.5px] font-semibold text-[#475569] mb-1">
-                    민원내용
-                  </label>
+                {/* 민원내용 + 자주 쓰는 문구 원클릭 */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11.5px] font-semibold text-[#475569]">
+                      민원내용
+                    </label>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <span className="text-[10.5px] text-[#64748b] inline-flex items-center gap-0.5 mr-0.5">
+                        <Sparkles className="w-3 h-3 text-[#2563eb]" />
+                        빠른 문구:
+                      </span>
+                      {QUICK_CONTENT_TEMPLATES.map((tpl) => (
+                        <button
+                          key={tpl}
+                          type="button"
+                          onClick={() => setContent(tpl)}
+                          className="px-2 py-0.5 rounded-[4px] bg-white hover:bg-[#eff6ff] border border-[#cbd5e1] text-[10.5px] font-semibold text-[#334155] hover:text-[#1d4ed8] cursor-pointer"
+                        >
+                          {tpl}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <textarea
-                    rows={3}
+                    rows={2}
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
-                    placeholder="민원 상세 요청 사항(신규 설치 요청, 제한속도 조정, 카메라 방향 점검 등)을 입력해 주세요."
-                    className="w-full p-2.5 rounded-[6px] border border-[#cbd5e1] bg-white text-[12.5px] text-[#0f172a] resize-none"
+                    placeholder="민원 상세 요청 사항을 입력해 주세요."
+                    className="w-full p-2 rounded-[6px] border border-[#cbd5e1] bg-white text-[12.5px] text-[#0f172a] resize-none"
                   />
                 </div>
               </div>
 
               {/* 섹션 2: 공단 검토 및 개선 결과 */}
               <div className="rounded-[9px] border border-[#cbd5e1] bg-[#f8fafc] p-3 space-y-2.5">
-                <div className="text-[12px] font-bold text-[#1e293b]">
+                <div className="text-[12px] font-bold text-[#0f172a]">
                   2. 공단 검토 및 현장 개선 결과
+                </div>
+
+                {/* 공단 검토결과 원클릭 칩 */}
+                <div>
+                  <label className="block text-[11.5px] font-semibold text-[#475569] mb-1">
+                    공단 검토결과 빠른 선택
+                  </label>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {codes.검토결과.map((resItem) => (
+                      <button
+                        key={resItem}
+                        type="button"
+                        onClick={() => setReviewResult(resItem)}
+                        className={`h-[29px] px-2.5 rounded-[6px] text-[11.5px] font-semibold border transition-all cursor-pointer ${
+                          reviewResult === resItem
+                            ? 'bg-[#2563eb] text-white border-[#2563eb]'
+                            : 'bg-white hover:bg-[#f1f5f9] text-[#334155] border-[#cbd5e1]'
+                        }`}
+                      >
+                        {resItem}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-12 gap-2.5">
@@ -381,7 +472,7 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
                       <button
                         type="button"
                         onClick={() => setReviewDate(todayStr)}
-                        className="h-[32px] px-2 rounded-[6px] bg-[#ecfdf5] hover:bg-[#d1fae5] text-[#047857] border border-[#a7f3d0] text-[11px] font-semibold whitespace-nowrap cursor-pointer"
+                        className="h-[32px] px-2 rounded-[6px] bg-[#ecfdf5] hover:bg-[#d1fae5] text-[#047857] border border-[#a7f3d0] text-[11px] font-bold whitespace-nowrap cursor-pointer"
                       >
                         오늘
                       </button>
@@ -390,49 +481,29 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
 
                   <div className="col-span-4">
                     <label className="block text-[11.5px] font-semibold text-[#475569] mb-1">
-                      공단 검토결과
+                      개선결과 (조치 및 답변 내역)
                     </label>
-                    <div className="flex items-center gap-1">
-                      <input
-                        type="text"
-                        list="review-result-list"
-                        value={reviewResult}
-                        onChange={(e) => setReviewResult(e.target.value)}
-                        className="w-full h-[32px] px-2.5 rounded-[6px] border border-[#cbd5e1] bg-white text-[12.5px] font-semibold text-[#0f172a]"
-                      />
-                      <datalist id="review-result-list">
-                        {codes.검토결과.map((c) => (
-                          <option key={c} value={c} />
-                        ))}
-                      </datalist>
-                    </div>
+                    <input
+                      type="text"
+                      value={improvementResult}
+                      onChange={(e) => setImprovementResult(e.target.value)}
+                      placeholder="예: 검토 완료 후 회신 예정 / 설치불가능"
+                      className="w-full h-[32px] px-2.5 rounded-[6px] border border-[#cbd5e1] bg-white text-[12.5px] text-[#0f172a]"
+                    />
                   </div>
 
                   <div className="col-span-4">
                     <label className="block text-[11.5px] font-semibold text-[#475569] mb-1">
-                      비고
+                      비고 (국민신문고 번호 / 현장면담 등)
                     </label>
                     <input
                       type="text"
                       value={note}
                       onChange={(e) => setNote(e.target.value)}
-                      placeholder="참고사항 입력"
+                      placeholder="예: 1AA-2611-0520856"
                       className="w-full h-[32px] px-2.5 rounded-[6px] border border-[#cbd5e1] bg-white text-[12.5px] text-[#0f172a]"
                     />
                   </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11.5px] font-semibold text-[#475569] mb-1">
-                    개선결과 (조치 내역 및 회신 내용)
-                  </label>
-                  <input
-                    type="text"
-                    value={improvementResult}
-                    onChange={(e) => setImprovementResult(e.target.value)}
-                    placeholder="예: 2026년 하반기 정기 설치 대상 반영 / 현장 표지판 및 차선 정비 완료"
-                    className="w-full h-[32px] px-2.5 rounded-[6px] border border-[#cbd5e1] bg-white text-[12.5px] text-[#0f172a]"
-                  />
                 </div>
               </div>
             </div>
@@ -443,56 +514,66 @@ export const MinwonFormView: React.FC<MinwonFormViewProps> = ({
                 variant="pearl-capsule"
                 onClick={onBackToLedger}
               >
-                목록으로 돌아가기
+                대장 목록으로 이동
               </PillButton>
 
-              {canWrite ? (
+              {canWrite && (
                 <div className="flex items-center gap-2">
+                  {!initialRecord && (
+                    <PillButton
+                      type="button"
+                      variant="secondary-pill"
+                      onClick={() => void savePayload(true)}
+                    >
+                      <FilePlus2 className="w-4 h-4" />
+                      <span>등록 후 계속 추가</span>
+                    </PillButton>
+                  )}
                   <PillButton type="submit" variant="primary">
-                    {initialRecord ? (
-                      <>
-                        <Save className="w-4 h-4" />
-                        <span>민원 수정사항 저장</span>
-                      </>
-                    ) : (
-                      <>
-                        <FilePlus2 className="w-4 h-4" />
-                        <span>민원접수대장에 등록</span>
-                      </>
-                    )}
+                    <Save className="w-4 h-4" />
+                    <span>{initialRecord ? '민원 수정사항 저장' : '민원접수대장에 등록'}</span>
                   </PillButton>
                 </div>
-              ) : (
-                <span className="text-[12px] text-[#dc2626] font-semibold">
-                  열람자 권한은 조회만 가능합니다.
-                </span>
               )}
             </div>
           </form>
         </UtilityCard>
       </div>
 
-      {/* 우측 4컬럼: 무인교통단속장비 마스터(487대) 검색 및 원클릭 위치/보호구역 자동 입력 도우미 */}
+      {/* 우측 4컬럼: 무인교통단속장비 마스터(487대) 검색 및 원클릭 위치 연동 */}
       <div className="col-span-4 min-h-0 flex flex-col">
         <UtilityCard
-          title="단속장비 위치 빠른 선택 (487대 연동)"
+          title="단속장비 위치 빠른 선택 (487대)"
           badge={<Radio className="w-3.5 h-3.5 text-[#2563eb]" />}
           className="flex-1 min-h-0"
-          bodyClassName="gap-2.5"
+          bodyClassName="gap-2"
         >
-          <div className="text-[11.5px] text-[#64748b]">
-            장비번호(예: <strong className="text-[#0f172a]">B7272</strong>)나 교차로/학교명을 검색하여 클릭하면 좌측 민원 폼의 <strong className="text-[#2563eb]">위치·구역구분·장비번호</strong>가 자동으로 채워집니다.
-          </div>
-
           <div className="relative shrink-0">
             <Search className="w-3.5 h-3.5 text-[#64748b] absolute left-2.5 top-2.5" />
             <input
               type="text"
               value={deviceSearchKw}
               onChange={(e) => setDeviceSearchKw(e.target.value)}
-              placeholder="장비번호, 교차로명, 동/읍/면 주소 검색..."
+              placeholder="장비번호(B7272), 교차로명, 동/읍/면 주소 검색..."
               className="w-full h-[32px] pl-8 pr-2.5 rounded-[7px] border border-[#cbd5e1] bg-[#f8fafc] focus:bg-white text-[12px] focus:outline-2 focus:outline-[#2563eb]"
             />
+          </div>
+
+          <div className="flex items-center gap-1 flex-wrap shrink-0">
+            {['전체', '일반구역', '어린이보호구역', '노인보호구역'].map((z) => (
+              <button
+                key={z}
+                type="button"
+                onClick={() => setDeviceZoneFilter(z)}
+                className={`px-2 py-1 rounded-[5px] text-[11px] font-semibold border cursor-pointer ${
+                  deviceZoneFilter === z
+                    ? 'bg-[#2563eb] text-white border-[#2563eb]'
+                    : 'bg-[#f8fafc] text-[#475569] border-[#cbd5e1]'
+                }`}
+              >
+                {z}
+              </button>
+            ))}
           </div>
 
           <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-1">

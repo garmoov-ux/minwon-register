@@ -146,7 +146,6 @@ export const App: React.FC = () => {
         open={loginModalOpen || (safeSnapshot.config.system.requireLoginOnStart && !session)}
         session={session}
         requireLogin={safeSnapshot.config.system.requireLoginOnStart}
-        designatedAdminUsername={safeSnapshot.config.server.designatedAdminUsername}
         onClose={() => setLoginModalOpen(false)}
         onLoginSuccess={handleLoginSuccess}
         onLogout={() => void handleLogout()}
